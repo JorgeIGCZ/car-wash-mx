@@ -1,0 +1,31 @@
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: turbo_wash
+      MYSQL_USER: turbo
+      MYSQL_PASSWORD: turbo
+      MYSQL_ROOT_PASSWORD: root
+      TZ: America/Mexico_City
+    ports:
+      - "3306:3306"
+    volumes:
+      - turbo_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  adminer:
+    image: adminer:5
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+volumes:
+  turbo_mysql_data:

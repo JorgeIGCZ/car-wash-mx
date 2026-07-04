@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  EMPLOYEE
+}
+
+enum ServiceCategory {
+  NORMAL
+  INTERIOR
+  SPECIAL
+}
+
+model User {
+  id                 Int               @id @default(autoincrement())
+  name               String
+  email              String            @unique
+  passwordHash       String
+  mustChangePassword Boolean           @default(true)
+  passwordChangedAt  DateTime?
+  role               UserRole          @default(EMPLOYEE)
+  active             Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  sessions           Session[]
+  washesCreated      Wash[]            @relation("CreatedWashes")
+  washParticipations WashParticipant[]
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique @db.VarChar(64)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model VehicleType {
+  id             Int            @id @default(autoincrement())
+  name           String
+  slug           String         @unique
+  requiresCustom Boolean        @default(false)
+  active         Boolean        @default(true)
+  sortOrder      Int            @default(0)
+  prices         ServicePrice[]
+  washes         Wash[]
+}
+
+model ServicePackage {
+  id                  Int             @id @default(autoincrement())
+  name                String
+  slug                String          @unique
+  description         String?
+  category            ServiceCategory
+  requiresCustomPrice Boolean         @default(false)
+  requiresDescription Boolean         @default(false)
+  active              Boolean         @default(true)
+  sortOrder           Int             @default(0)
+  prices              ServicePrice[]
+  washes              Wash[]
+}
+
+model ServicePrice {
+  id            Int            @id @default(autoincrement())
+  amount        Decimal        @db.Decimal(10, 2)
+  vehicleTypeId Int
+  packageId     Int
+  vehicleType   VehicleType    @relation(fields: [vehicleTypeId], references: [id], onDelete: Cascade)
+  package       ServicePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleTypeId, packageId])
+}
+
+model Wash {
+  id                       Int               @id @default(autoincrement())
+  plate                    String?           @db.VarChar(32)
+  chargedPrice             Decimal           @db.Decimal(10, 2)
+  notes                    String?           @db.Text
+  customServiceDescription String?           @db.Text
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  createdById              Int
+  vehicleTypeId            Int
+  packageId                Int
+  createdBy                User               @relation("CreatedWashes", fields: [createdById], references: [id])
+  vehicleType              VehicleType        @relation(fields: [vehicleTypeId], references: [id])
+  package                  ServicePackage     @relation(fields: [packageId], references: [id])
+  participants             WashParticipant[]
+  photos                   WashPhoto[]
+
+  @@index([createdById, createdAt])
+  @@index([createdAt])
+}
+
+model WashPhoto {
+  id        Int      @id @default(autoincrement())
+  objectKey String   @unique @db.VarChar(512)
+  mimeType  String   @db.VarChar(100)
+  byteSize  Int
+  width     Int
+  height    Int
+  createdAt DateTime @default(now())
+  washId    Int
+  wash      Wash     @relation(fields: [washId], references: [id], onDelete: Cascade)
+
+  @@index([washId, createdAt])
+}
+
+model WashParticipant {
+  washId Int
+  userId Int
+  wash   Wash @relation(fields: [washId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([washId, userId])
+}
+
+model AppSetting {
+  key       String   @id @db.VarChar(100)
+  value     String   @db.VarChar(255)
+  updatedAt DateTime @updatedAt
+}

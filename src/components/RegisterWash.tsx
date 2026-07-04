@@ -349,90 +349,7 @@ export function RegisterWash() {
             <span>4</span>
             <div>
               <h2>Detalles</h2>
-              <p>Agrega la referencia y quién participó.</p>
-            </div>
-          </div>
-
-          <div className="field-grid">
-            <label>
-              Placa / referencia <em>Opcional</em>
-              <input name="plate" placeholder="ABC-123" maxLength={32} />
-            </label>
-
-            {needsCustomPrice && (
-              <label>
-                Precio acordado
-                <span className="money-input">
-                  <b>$</b>
-                  <input
-                    inputMode="decimal"
-                    type="number"
-                    min="1"
-                    step="0.01"
-                    value={customPrice}
-                    onChange={(event) => setCustomPrice(event.target.value)}
-                    placeholder="0.00"
-                    required
-                  />
-                </span>
-              </label>
-            )}
-
-            {selectedPackage?.requiresDescription && (
-              <label className="wide">
-                Información del servicio especial
-                <textarea
-                  name="customServiceDescription"
-                  placeholder="Describe el trabajo que se realizará…"
-                  required
-                />
-              </label>
-            )}
-
-            <label className="wide">
-              Observaciones <em>Opcional</em>
-              <textarea
-                name="notes"
-                placeholder="Detalles del vehículo o indicaciones…"
-              />
-            </label>
-          </div>
-
-          <div className="collaborators">
-            <div className="collaborators-title">
-              <UserRoundPlus size={20} />
-              <div>
-                <strong>Participantes adicionales</strong>
-                <small>Opcional</small>
-              </div>
-            </div>
-            <div className="chip-list">
-              {data.users
-                .filter(
-                  (user) =>
-                    user.id !== data.user.id &&
-                    user.role !== "ADMINISTRATIVE",
-                )
-                .map((user) => {
-                  const selected = participants.includes(user.id);
-                  return (
-                    <button
-                      type="button"
-                      key={user.id}
-                      className={selected ? "selected" : ""}
-                      onClick={() =>
-                        setParticipants((current) =>
-                          selected
-                            ? current.filter((id) => id !== user.id)
-                            : [...current, user.id],
-                        )
-                      }
-                    >
-                      {selected && <Check size={15} />}
-                      {user.name}
-                    </button>
-                  );
-                })}
+              <p>Adjunta fotografías y agrega quién participó.</p>
             </div>
           </div>
 
@@ -480,6 +397,89 @@ export function RegisterWash() {
                 </label>
               )}
             </div>
+          </div>
+
+          <div className="collaborators">
+            <div className="collaborators-title">
+              <UserRoundPlus size={20} />
+              <div>
+                <strong>Participantes adicionales</strong>
+                <small>Opcional</small>
+              </div>
+            </div>
+            <div className="chip-list">
+              {data.users
+                .filter(
+                  (user) =>
+                    user.id !== data.user.id &&
+                    user.role !== "ADMINISTRATIVE",
+                )
+                .map((user) => {
+                  const selected = participants.includes(user.id);
+                  return (
+                    <button
+                      type="button"
+                      key={user.id}
+                      className={selected ? "selected" : ""}
+                      onClick={() =>
+                        setParticipants((current) =>
+                          selected
+                            ? current.filter((id) => id !== user.id)
+                            : [...current, user.id],
+                        )
+                      }
+                    >
+                      {selected && <Check size={15} />}
+                      {user.name}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+
+          <div className="field-grid">
+            <label>
+              Placa / referencia <em>Opcional</em>
+              <input name="plate" placeholder="ABC-123" maxLength={32} />
+            </label>
+
+            {needsCustomPrice && (
+              <label>
+                Precio acordado
+                <span className="money-input">
+                  <b>$</b>
+                  <input
+                    inputMode="decimal"
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    value={customPrice}
+                    onChange={(event) => setCustomPrice(event.target.value)}
+                    placeholder="0.00"
+                    required
+                  />
+                </span>
+              </label>
+            )}
+
+            {selectedPackage?.requiresDescription && (
+              <label className="wide">
+                Información del servicio especial
+                <textarea
+                  name="customServiceDescription"
+                  placeholder="Describe el trabajo que se realizará…"
+                  required
+                />
+              </label>
+            )}
+
+            <label className="wide">
+              Observaciones <em>Opcional</em>
+              <textarea
+                name="notes"
+                placeholder="Detalles del vehículo o indicaciones…"
+              />
+            </label>
           </div>
         </section>
 

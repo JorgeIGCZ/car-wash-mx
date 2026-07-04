@@ -367,7 +367,7 @@ function StatCard({
   icon?: "commission" | "net";
 }) {
   return (
-    <div>
+    <div className={icon ? "with-icon" : "without-icon"}>
       {icon === "commission" && <HandCoins size={19} />}
       {icon === "net" && <TrendingUp size={19} />}
       <span>{label}</span>

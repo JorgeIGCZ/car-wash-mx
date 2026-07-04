@@ -12,8 +12,14 @@ Aplicación web para registrar y consultar los servicios de Turbo Wash Auto Spa.
 - Placa, observaciones y participantes adicionales.
 - Hasta 6 fotografías privadas por lavado, optimizadas y almacenadas en Cloudflare R2.
 - Historial por día, semana, mes o rango de fechas.
+- Historial global filtrable por usuario dentro de Administración.
+- Comisiones por usuario, paquete y vehículo, configurables como porcentaje o
+  cantidad fija, con cálculo de ganancia neta.
+- Comisiones históricas conservadas por lavado aunque cambien las reglas.
 - Catálogo, precios y usuarios administrables.
 - Historial restringido a los registros propios para los encargados.
+- Rol administrativo de consulta para revisar historial y comisiones sin
+  editar precios ni configuración.
 
 ## Desarrollo local
 
@@ -29,6 +35,47 @@ npm run dev
 
 Aplicación: http://localhost:3000  
 Adminer: http://localhost:8080
+
+### Entornos
+
+`.env` pertenece exclusivamente al desarrollo local:
+
+```text
+APP_ENV=local
+NEXT_PUBLIC_APP_ENV=local
+DATABASE_URL=mysql://turbo:turbo@localhost:3306/turbo_wash
+```
+
+La conexión de producción se conserva en `.env.production`, que está ignorado
+por Git.
+Los comandos normales de Prisma siempre usan `.env`:
+
+```bash
+npm run db:migrate
+npm run db:seed
+```
+
+Para consultar o desplegar migraciones en la base de producción se requieren
+comandos explícitos:
+
+```bash
+npm run db:status:production
+npm run db:migrate:production
+```
+
+No copies `.env.production` sobre `.env`; así `npm run dev` nunca usa
+accidentalmente la base remota.
+
+## Instalación en celular
+
+La aplicación se puede instalar como PWA desde una dirección HTTPS:
+
+- Android/Chrome: usa el botón **Instalar app**.
+- iPhone/Safari: toca **Compartir** y después **Agregar a inicio**.
+
+Los registros, el historial y las fotografías requieren conexión. El service
+worker solo almacena recursos públicos de la interfaz y nunca respuestas de la
+API ni páginas con datos de usuarios.
 
 Para Adminer:
 

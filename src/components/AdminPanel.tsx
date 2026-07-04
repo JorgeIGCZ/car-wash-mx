@@ -1,20 +1,35 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   CalendarRange,
   Check,
+  ChevronDown,
   CircleDollarSign,
+  ClipboardList,
+  HandCoins,
   KeyRound,
   PackagePlus,
+  Plus,
   Save,
   Settings,
+  Trash2,
   UserPlus,
   Users,
 } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
+import { WashHistory } from "@/components/WashHistory";
+import { formatMoney } from "@/lib/format";
 import type {
   BootstrapData,
+  CommissionRuleOption,
   ServicePackageOption,
   ServicePriceOption,
   VehicleTypeOption,
@@ -24,7 +39,7 @@ type AdminUser = {
   id: number;
   name: string;
   email: string;
-  role: "ADMIN" | "EMPLOYEE";
+  role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
   active: boolean;
   mustChangePassword: boolean;
   _count: { washesCreated: number; washParticipations: number };
@@ -35,7 +50,13 @@ type WorkWeekSettings = {
   endDay: number;
 };
 
-type Tab = "PRICES" | "CATALOG" | "USERS" | "SETTINGS";
+type Tab =
+  | "HISTORY"
+  | "PRICES"
+  | "COMMISSIONS"
+  | "CATALOG"
+  | "USERS"
+  | "SETTINGS";
 
 const weekDays = [
   "Domingo",
@@ -48,21 +69,33 @@ const weekDays = [
 ];
 
 export function AdminPanel() {
-  const [tab, setTab] = useState<Tab>("PRICES");
+  const [tab, setTab] = useState<Tab>("HISTORY");
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [commissionRules, setCommissionRules] = useState<
+    CommissionRuleOption[]
+  >([]);
   const [settings, setSettings] = useState<WorkWeekSettings | null>(null);
   const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
-    const [catalogResponse, usersResponse, settingsResponse] = await Promise.all([
+    const [
+      catalogResponse,
+      usersResponse,
+      settingsResponse,
+      commissionsResponse,
+    ] = await Promise.all([
       fetch("/api/bootstrap", { cache: "no-store" }),
       fetch("/api/admin/users", { cache: "no-store" }),
       fetch("/api/admin/settings", { cache: "no-store" }),
+      fetch("/api/admin/commissions", { cache: "no-store" }),
     ]);
     if (catalogResponse.ok) setBootstrap(await catalogResponse.json());
     if (usersResponse.ok) setUsers(await usersResponse.json());
     if (settingsResponse.ok) setSettings(await settingsResponse.json());
+    if (commissionsResponse.ok) {
+      setCommissionRules(await commissionsResponse.json());
+    }
   }, []);
 
   useEffect(() => {
@@ -75,35 +108,65 @@ export function AdminPanel() {
   }
 
   if (!bootstrap) return <div className="page-loading">Cargando administración…</div>;
+  const canEdit = bootstrap.user.role === "ADMIN";
 
   return (
     <div className="admin-page">
       <PageHero title="Administración" eyebrow="TURBO WASH · CONFIGURACIÓN">
         <div className="admin-tabs">
+          <button className={tab === "HISTORY" ? "selected" : ""} onClick={() => setTab("HISTORY")}>
+            <ClipboardList size={18} /> Historial
+          </button>
           <button className={tab === "PRICES" ? "selected" : ""} onClick={() => setTab("PRICES")}>
             <CircleDollarSign size={18} /> Precios
           </button>
-          <button className={tab === "CATALOG" ? "selected" : ""} onClick={() => setTab("CATALOG")}>
-            <Settings size={18} /> Catálogo
+          <button className={tab === "COMMISSIONS" ? "selected" : ""} onClick={() => setTab("COMMISSIONS")}>
+            <HandCoins size={18} /> Comisiones
           </button>
-          <button className={tab === "USERS" ? "selected" : ""} onClick={() => setTab("USERS")}>
-            <Users size={18} /> Usuarios
-          </button>
-          <button className={tab === "SETTINGS" ? "selected" : ""} onClick={() => setTab("SETTINGS")}>
-            <CalendarRange size={18} /> Semana
-          </button>
+          {canEdit && (
+            <>
+              <button className={tab === "CATALOG" ? "selected" : ""} onClick={() => setTab("CATALOG")}>
+                <Settings size={18} /> Catálogo
+              </button>
+              <button className={tab === "USERS" ? "selected" : ""} onClick={() => setTab("USERS")}>
+                <Users size={18} /> Usuarios
+              </button>
+              <button className={tab === "SETTINGS" ? "selected" : ""} onClick={() => setTab("SETTINGS")}>
+                <CalendarRange size={18} /> Semana
+              </button>
+            </>
+          )}
         </div>
       </PageHero>
 
       {message && <div className="admin-toast"><Check size={17} />{message}</div>}
 
+      {tab === "HISTORY" && (
+        <WashHistory embedded scope="ALL" users={users} />
+      )}
       {tab === "PRICES" && (
         <PriceEditor
           packages={bootstrap.packages}
           vehicles={bootstrap.vehicleTypes}
           prices={bootstrap.prices}
+          readOnly={!canEdit}
           onSaved={() => {
             flash("Precio actualizado");
+            void load();
+          }}
+        />
+      )}
+      {tab === "COMMISSIONS" && (
+        <CommissionEditor
+          packages={bootstrap.packages}
+          vehicles={bootstrap.vehicleTypes}
+          users={users.filter(
+            (user) => user.active && user.role !== "ADMINISTRATIVE",
+          )}
+          commissionRules={commissionRules}
+          readOnly={!canEdit}
+          onSaved={() => {
+            flash("Comisión actualizada");
             void load();
           }}
         />
@@ -200,18 +263,45 @@ function PriceEditor({
   packages,
   vehicles,
   prices,
+  readOnly,
   onSaved,
 }: {
   packages: ServicePackageOption[];
   vehicles: VehicleTypeOption[];
   prices: ServicePriceOption[];
+  readOnly: boolean;
   onSaved: () => void;
 }) {
-  const fixedPackages = packages.filter(
-    (item) => !item.requiresCustomPrice && item.category !== "SPECIAL",
+  const activeVehicles = vehicles.filter(
+    (vehicle) => vehicle.active && !vehicle.requiresCustom,
   );
-  const fixedVehicles = vehicles.filter((item) => !item.requiresCustom);
-  const initialValues = useMemo(
+  const serviceGroups = [
+    {
+      category: "NORMAL",
+      label: "Servicio normal",
+      description: "Lavado completo y exterior",
+    },
+    {
+      category: "INTERIOR",
+      label: "Servicio de interiores",
+      description: "Limpieza de asientos, cielo y alfombra",
+    },
+  ]
+    .map((group) => ({
+      ...group,
+      combinations: packages
+        .filter(
+          (item) =>
+            item.active &&
+            !item.requiresCustomPrice &&
+            item.category === group.category,
+        )
+        .flatMap((item) =>
+          activeVehicles.map((vehicle) => ({ item, vehicle })),
+        ),
+    }))
+    .filter((group) => group.combinations.length > 0);
+  const initialPriceValues = useMemo(
     () =>
       Object.fromEntries(
         prices.map((price) => [
@@ -221,13 +311,14 @@ function PriceEditor({
       ),
     [prices],
   );
-  const [values, setValues] = useState<Record<string, string>>(initialValues);
+  const [priceValues, setPriceValues] =
+    useState<Record<string, string>>(initialPriceValues);
 
-  useEffect(() => setValues(initialValues), [initialValues]);
+  useEffect(() => setPriceValues(initialPriceValues), [initialPriceValues]);
 
-  async function save(packageId: number, vehicleTypeId: number) {
+  async function savePrice(packageId: number, vehicleTypeId: number) {
     const key = `${packageId}-${vehicleTypeId}`;
-    const amount = Number(values[key]);
+    const amount = Number(priceValues[key]);
     if (Number.isNaN(amount) || amount < 0) return;
     const response = await fetch("/api/admin/prices", {
       method: "PUT",
@@ -243,50 +334,563 @@ function PriceEditor({
         <CircleDollarSign size={23} />
         <div>
           <h2>Precios por vehículo</h2>
-          <p>Los cambios se guardan al salir de cada campo.</p>
+          <p>
+            Los precios libres se capturan al registrar. Los demás cambios se
+            guardan al salir del campo.
+          </p>
         </div>
       </div>
+      <p className="price-free-note">
+        Servicios especiales y el vehículo Especial conservan precio libre.
+      </p>
       <div className="price-table-wrap">
         <table className="price-table">
           <thead>
             <tr>
-              <th>Paquete</th>
-              {fixedVehicles.map((vehicle) => <th key={vehicle.id}>{vehicle.name}</th>)}
+              <th>Servicio</th>
+              <th>Vehículo</th>
+              <th>Precio</th>
             </tr>
           </thead>
           <tbody>
-            {fixedPackages.map((item) => (
-              <tr key={item.id}>
-                <th>
-                  <span>{item.name}</span>
-                  <small>{item.category === "NORMAL" ? "Normal" : "Interiores"}</small>
-                </th>
-                {fixedVehicles.map((vehicle) => {
-                  const key = `${item.id}-${vehicle.id}`;
-                  return (
-                    <td key={vehicle.id}>
+            {serviceGroups.map((group) => (
+              <Fragment key={group.category}>
+                <tr className="price-category-row">
+                  <th colSpan={3}>
+                    <span>{group.label}</span>
+                    <small>{group.description}</small>
+                  </th>
+                </tr>
+                {group.combinations.map(({ item, vehicle }) => {
+                const priceKey = `${item.id}-${vehicle.id}`;
+                return (
+                  <tr key={`${item.id}-${vehicle.id}`}>
+                    <th data-label="Servicio">
+                      <span>{item.name}</span>
+                      <small>
+                        {item.category === "NORMAL"
+                          ? "Normal"
+                          : item.category === "INTERIOR"
+                            ? "Interiores"
+                            : "Especial"}
+                      </small>
+                    </th>
+                    <td data-label="Vehículo">
+                      <strong className="vehicle-name">{vehicle.name}</strong>
+                    </td>
+                    <td data-label="Precio">
                       <span className="compact-money">
                         $
                         <input
                           type="number"
                           min="0"
                           step="0.01"
-                          value={values[key] ?? ""}
+                          value={priceValues[priceKey] ?? ""}
+                          disabled={readOnly}
                           onChange={(event) =>
-                            setValues((current) => ({ ...current, [key]: event.target.value }))
+                            setPriceValues((current) => ({
+                              ...current,
+                              [priceKey]: event.target.value,
+                            }))
                           }
-                          onBlur={() => void save(item.id, vehicle.id)}
+                          onBlur={() => void savePrice(item.id, vehicle.id)}
                         />
                       </span>
                     </td>
-                  );
+                  </tr>
+                );
                 })}
-              </tr>
+              </Fragment>
             ))}
           </tbody>
         </table>
       </div>
     </section>
+  );
+}
+
+type CommissionTarget =
+  | {
+      scope: "CATEGORY";
+      category: "NORMAL" | "INTERIOR" | "SPECIAL";
+      packageId?: never;
+      vehicleTypeId?: never;
+    }
+  | {
+      scope: "PACKAGE";
+      packageId: number;
+      category?: never;
+      vehicleTypeId?: never;
+    }
+  | {
+      scope: "VEHICLE_PACKAGE";
+      packageId: number;
+      vehicleTypeId: number;
+      category?: never;
+    };
+
+type CommissionDraft = {
+  type: "PERCENTAGE" | "FIXED";
+  value: string;
+};
+
+function targetScopeKey(target: CommissionTarget) {
+  if (target.scope === "CATEGORY") {
+    return `category:${target.category}`;
+  }
+  if (target.scope === "VEHICLE_PACKAGE") {
+    return `package:${target.packageId}:vehicle:${target.vehicleTypeId}`;
+  }
+  return `package:${target.packageId}`;
+}
+
+function CommissionEditor({
+  packages,
+  vehicles,
+  users,
+  commissionRules,
+  readOnly,
+  onSaved,
+}: {
+  packages: ServicePackageOption[];
+  vehicles: VehicleTypeOption[];
+  users: AdminUser[];
+  commissionRules: CommissionRuleOption[];
+  readOnly: boolean;
+  onSaved: () => void;
+}) {
+  const activePackages = packages.filter((item) => item.active);
+  const activeVehicles = vehicles.filter((item) => item.active);
+  const interiorPackages = activePackages.filter(
+    (item) => item.category === "INTERIOR",
+  );
+  const specialPackages = activePackages.filter(
+    (item) => item.category === "SPECIAL",
+  );
+  const initialDrafts = useMemo(
+    () =>
+      Object.fromEntries(
+        commissionRules.map((rule) => [
+          `${rule.userId}-${rule.scopeKey}`,
+          { type: rule.type, value: String(rule.value) },
+        ]),
+      ) as Record<string, CommissionDraft>,
+    [commissionRules],
+  );
+  const [selectedUser, setSelectedUser] = useState(
+    users[0] ? String(users[0].id) : "",
+  );
+  const [drafts, setDrafts] =
+    useState<Record<string, CommissionDraft>>(initialDrafts);
+  const [showExceptions, setShowExceptions] = useState(false);
+  const [exceptionPackageId, setExceptionPackageId] = useState(
+    activePackages[0] ? String(activePackages[0].id) : "",
+  );
+  const [exceptionVehicleId, setExceptionVehicleId] = useState(
+    activeVehicles[0] ? String(activeVehicles[0].id) : "",
+  );
+  const [exceptionType, setExceptionType] =
+    useState<"PERCENTAGE" | "FIXED">("PERCENTAGE");
+  const [exceptionValue, setExceptionValue] = useState("0");
+
+  useEffect(() => setDrafts(initialDrafts), [initialDrafts]);
+  useEffect(() => {
+    if (!selectedUser && users[0]) setSelectedUser(String(users[0].id));
+  }, [selectedUser, users]);
+
+  function draftFor(target: CommissionTarget) {
+    return (
+      drafts[`${selectedUser}-${targetScopeKey(target)}`] ?? {
+        type: "PERCENTAGE",
+        value: "0",
+      }
+    );
+  }
+
+  function updateDraft(
+    target: CommissionTarget,
+    patch: Partial<CommissionDraft>,
+  ) {
+    const key = `${selectedUser}-${targetScopeKey(target)}`;
+    setDrafts((current) => ({
+      ...current,
+      [key]: { ...draftFor(target), ...patch },
+    }));
+  }
+
+  async function saveRule(
+    target: CommissionTarget,
+    typeOverride?: "PERCENTAGE" | "FIXED",
+  ) {
+    if (readOnly) return;
+    const userId = Number(selectedUser);
+    const draft = draftFor(target);
+    const type = typeOverride ?? draft.type;
+    const value = Number(draft.value);
+    if (
+      !userId ||
+      Number.isNaN(value) ||
+      value < 0 ||
+      (type === "PERCENTAGE" && value > 100)
+    ) {
+      return;
+    }
+    const response = await fetch("/api/admin/commissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, ...target, type, value }),
+    });
+    if (response.ok) onSaved();
+  }
+
+  async function createException(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (readOnly) return;
+    const userId = Number(selectedUser);
+    const packageId = Number(exceptionPackageId);
+    const vehicleTypeId = Number(exceptionVehicleId);
+    const value = Number(exceptionValue);
+    if (
+      !userId ||
+      !packageId ||
+      !vehicleTypeId ||
+      Number.isNaN(value) ||
+      value < 0 ||
+      (exceptionType === "PERCENTAGE" && value > 100)
+    ) {
+      return;
+    }
+    const response = await fetch("/api/admin/commissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        scope: "VEHICLE_PACKAGE",
+        packageId,
+        vehicleTypeId,
+        type: exceptionType,
+        value,
+      }),
+    });
+    if (response.ok) onSaved();
+  }
+
+  async function removeException(rule: CommissionRuleOption) {
+    if (readOnly || !rule.packageId || !rule.vehicleTypeId) return;
+    const response = await fetch("/api/admin/commissions", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: rule.userId,
+        scope: "VEHICLE_PACKAGE",
+        packageId: rule.packageId,
+        vehicleTypeId: rule.vehicleTypeId,
+      }),
+    });
+    if (response.ok) onSaved();
+  }
+
+  const selectedUserId = Number(selectedUser);
+  const exceptions = commissionRules.filter(
+    (rule) =>
+      rule.userId === selectedUserId &&
+      rule.packageId !== null &&
+      rule.vehicleTypeId !== null,
+  );
+
+  function ruleCard(
+    title: string,
+    description: string,
+    target: CommissionTarget,
+  ) {
+    const draft = draftFor(target);
+    return (
+      <CommissionRuleCard
+        key={targetScopeKey(target)}
+        title={title}
+        description={description}
+        draft={draft}
+        readOnly={readOnly || !selectedUser}
+        onTypeChange={(type) => {
+          updateDraft(target, { type });
+          void saveRule(target, type);
+        }}
+        onValueChange={(value) => updateDraft(target, { value })}
+        onSave={() => void saveRule(target)}
+      />
+    );
+  }
+
+  return (
+    <section className="admin-section commission-editor">
+      <div className="content-heading">
+        <HandCoins size={23} />
+        <div>
+          <h2>Comisiones por trabajador</h2>
+          <p>
+            Las reglas generales reducen capturas repetidas. La ganancia real
+            queda registrada en cada lavado.
+          </p>
+        </div>
+      </div>
+
+      <div className="commission-toolbar">
+        <label>
+          Trabajador
+          <select
+            value={selectedUser}
+            onChange={(event) => setSelectedUser(event.target.value)}
+          >
+            {users.map((user) => (
+              <option value={user.id} key={user.id}>
+                {user.name} ·{" "}
+                {user.role === "ADMIN" ? "Administrador" : "Encargado"}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p>
+          {readOnly
+            ? "Vista de consulta. Este perfil no puede modificar comisiones."
+            : "Los cambios se guardan al salir del campo."}
+        </p>
+      </div>
+
+      <div className="commission-rule-section">
+        <div className="commission-section-heading">
+          <div>
+            <h3>Lavado normal</h3>
+            <p>Una regla para completo y exterior, sin importar el vehículo.</p>
+          </div>
+          <span>1 regla</span>
+        </div>
+        <div className="commission-rule-grid single">
+          {ruleCard(
+            "Todos los lavados normales",
+            "Completo y exterior · todos los vehículos",
+            { scope: "CATEGORY", category: "NORMAL" },
+          )}
+        </div>
+      </div>
+
+      <div className="commission-rule-section">
+        <div className="commission-section-heading">
+          <div>
+            <h3>Lavado de interiores</h3>
+            <p>Una regla particular para cada servicio de interiores.</p>
+          </div>
+          <span>{interiorPackages.length} reglas</span>
+        </div>
+        <div className="commission-rule-grid">
+          {interiorPackages.map((item) =>
+            ruleCard(item.name, item.description ?? "Servicio de interiores", {
+              scope: "PACKAGE",
+              packageId: item.id,
+            }),
+          )}
+        </div>
+      </div>
+
+      {specialPackages.length > 0 && (
+        <div className="commission-rule-section">
+          <div className="commission-section-heading">
+            <div>
+              <h3>Servicios especiales</h3>
+              <p>La comisión se calcula sobre el precio libre registrado.</p>
+            </div>
+            <span>{specialPackages.length} reglas</span>
+          </div>
+          <div className="commission-rule-grid">
+            {specialPackages.map((item) =>
+              ruleCard(item.name, item.description ?? "Servicio especial", {
+                scope: "PACKAGE",
+                packageId: item.id,
+              }),
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="commission-exceptions">
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={() => setShowExceptions((current) => !current)}
+        >
+          <Plus size={17} />
+          {showExceptions ? "Ocultar excepciones" : "Configurar excepción por vehículo"}
+        </button>
+
+        {showExceptions && (
+          <form className="commission-exception-form" onSubmit={createException}>
+            <label>
+              Servicio
+              <select
+                value={exceptionPackageId}
+                onChange={(event) => setExceptionPackageId(event.target.value)}
+                disabled={readOnly}
+              >
+                {activePackages.map((item) => (
+                  <option value={item.id} key={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Vehículo
+              <select
+                value={exceptionVehicleId}
+                onChange={(event) => setExceptionVehicleId(event.target.value)}
+                disabled={readOnly}
+              >
+                {activeVehicles.map((item) => (
+                  <option value={item.id} key={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Tipo
+              <select
+                value={exceptionType}
+                onChange={(event) =>
+                  setExceptionType(
+                    event.target.value as "PERCENTAGE" | "FIXED",
+                  )
+                }
+                disabled={readOnly}
+              >
+                <option value="PERCENTAGE">Porcentaje</option>
+                <option value="FIXED">Cantidad fija</option>
+              </select>
+            </label>
+            <label>
+              Valor
+              <span className="commission-value-control">
+                {exceptionType === "FIXED" && "$"}
+                <input
+                  type="number"
+                  min="0"
+                  max={exceptionType === "PERCENTAGE" ? 100 : 999999}
+                  step="0.01"
+                  value={exceptionValue}
+                  onChange={(event) => setExceptionValue(event.target.value)}
+                  disabled={readOnly}
+                />
+                {exceptionType === "PERCENTAGE" && "%"}
+              </span>
+            </label>
+            <button className="primary-button" disabled={readOnly}>
+              <Save size={17} /> Guardar excepción
+            </button>
+          </form>
+        )}
+
+        {exceptions.length > 0 && (
+          <div className="commission-exception-list">
+            {exceptions.map((rule) => {
+              const servicePackage = packages.find(
+                (item) => item.id === rule.packageId,
+              );
+              const vehicle = vehicles.find(
+                (item) => item.id === rule.vehicleTypeId,
+              );
+              return (
+                <div key={rule.id}>
+                  <span>
+                    <b>{servicePackage?.name ?? "Servicio"}</b>
+                    {vehicle?.name ?? "Vehículo"}
+                  </span>
+                  <strong>
+                    {rule.type === "PERCENTAGE"
+                      ? `${rule.value}%`
+                      : formatMoney(rule.value)}
+                  </strong>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      aria-label="Eliminar excepción"
+                      onClick={() => void removeException(rule)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CommissionRuleCard({
+  title,
+  description,
+  draft,
+  readOnly,
+  onTypeChange,
+  onValueChange,
+  onSave,
+}: {
+  title: string;
+  description: string;
+  draft: CommissionDraft;
+  readOnly: boolean;
+  onTypeChange: (type: "PERCENTAGE" | "FIXED") => void;
+  onValueChange: (value: string) => void;
+  onSave: () => void;
+}) {
+  const numericValue = Number(draft.value || 0);
+  return (
+    <article className="commission-rule-card">
+      <div>
+        <strong>{title}</strong>
+        <p>{description}</p>
+      </div>
+      <label>
+        Tipo
+        <span className="commission-type-control">
+          <select
+            className="commission-type"
+            value={draft.type}
+            disabled={readOnly}
+            onChange={(event) =>
+              onTypeChange(event.target.value as "PERCENTAGE" | "FIXED")
+            }
+          >
+            <option value="PERCENTAGE">Porcentaje</option>
+            <option value="FIXED">Cantidad fija</option>
+          </select>
+          <ChevronDown aria-hidden="true" size={17} strokeWidth={2} />
+        </span>
+      </label>
+      <label>
+        Valor
+        <span className="commission-value-control">
+          {draft.type === "FIXED" && "$"}
+          <input
+            type="number"
+            min="0"
+            max={draft.type === "PERCENTAGE" ? 100 : 999999}
+            step="0.01"
+            value={draft.value}
+            disabled={readOnly}
+            onChange={(event) => onValueChange(event.target.value)}
+            onBlur={onSave}
+          />
+          {draft.type === "PERCENTAGE" && "%"}
+        </span>
+      </label>
+      <small>
+        {draft.type === "PERCENTAGE"
+          ? `${numericValue}% del precio · el negocio conserva ${Math.max(0, 100 - numericValue)}% antes de otras comisiones`
+          : `${formatMoney(numericValue)} por lavado`}
+      </small>
+    </article>
   );
 }
 
@@ -532,6 +1136,7 @@ function UserEditor({
               </div>
               <select value={user.role} onChange={(e) => void update({ id: user.id, role: e.target.value })}>
                 <option value="EMPLOYEE">Encargado</option>
+                <option value="ADMINISTRATIVE">Administrativo</option>
                 <option value="ADMIN">Administrador</option>
               </select>
               <button className={`status-toggle ${user.active ? "active" : ""}`} onClick={() => void update({ id: user.id, active: !user.active })}>
@@ -557,7 +1162,14 @@ function UserEditor({
           <label>Correo<input name="email" type="email" required /></label>
           <label>Contraseña temporal<input name="password" type="password" minLength={10} required /></label>
           <p className="password-hint">El usuario deberá reemplazarla cuando inicie sesión.</p>
-          <label>Rol<select name="role" defaultValue="EMPLOYEE"><option value="EMPLOYEE">Encargado</option><option value="ADMIN">Administrador</option></select></label>
+          <label>
+            Rol
+            <select name="role" defaultValue="EMPLOYEE">
+              <option value="EMPLOYEE">Encargado</option>
+              <option value="ADMINISTRATIVE">Administrativo</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+          </label>
           <button className="primary-button"><UserPlus size={18} />Crear usuario</button>
         </form>
       </section>

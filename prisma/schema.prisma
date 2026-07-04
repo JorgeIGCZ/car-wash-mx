@@ -9,7 +9,13 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  ADMINISTRATIVE
   EMPLOYEE
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED
 }
 
 enum ServiceCategory {
@@ -32,6 +38,8 @@ model User {
   sessions           Session[]
   washesCreated      Wash[]            @relation("CreatedWashes")
   washParticipations WashParticipant[]
+  commissionRules    CommissionRule[]
+  washCommissions    WashCommission[]
 }
 
 model Session {
@@ -47,28 +55,30 @@ model Session {
 }
 
 model VehicleType {
-  id             Int            @id @default(autoincrement())
-  name           String
-  slug           String         @unique
-  requiresCustom Boolean        @default(false)
-  active         Boolean        @default(true)
-  sortOrder      Int            @default(0)
-  prices         ServicePrice[]
-  washes         Wash[]
+  id              Int              @id @default(autoincrement())
+  name            String
+  slug            String           @unique
+  requiresCustom  Boolean          @default(false)
+  active          Boolean          @default(true)
+  sortOrder       Int              @default(0)
+  prices          ServicePrice[]
+  washes          Wash[]
+  commissionRules CommissionRule[]
 }
 
 model ServicePackage {
-  id                  Int             @id @default(autoincrement())
+  id                  Int              @id @default(autoincrement())
   name                String
-  slug                String          @unique
+  slug                String           @unique
   description         String?
   category            ServiceCategory
-  requiresCustomPrice Boolean         @default(false)
-  requiresDescription Boolean         @default(false)
-  active              Boolean         @default(true)
-  sortOrder           Int             @default(0)
+  requiresCustomPrice Boolean          @default(false)
+  requiresDescription Boolean          @default(false)
+  active              Boolean          @default(true)
+  sortOrder           Int              @default(0)
   prices              ServicePrice[]
   washes              Wash[]
+  commissionRules     CommissionRule[]
 }
 
 model ServicePrice {
@@ -88,15 +98,16 @@ model Wash {
   chargedPrice             Decimal           @db.Decimal(10, 2)
   notes                    String?           @db.Text
   customServiceDescription String?           @db.Text
-  createdAt                DateTime           @default(now())
-  updatedAt                DateTime           @updatedAt
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
   createdById              Int
   vehicleTypeId            Int
   packageId                Int
-  createdBy                User               @relation("CreatedWashes", fields: [createdById], references: [id])
-  vehicleType              VehicleType        @relation(fields: [vehicleTypeId], references: [id])
-  package                  ServicePackage     @relation(fields: [packageId], references: [id])
+  createdBy                User              @relation("CreatedWashes", fields: [createdById], references: [id])
+  vehicleType              VehicleType       @relation(fields: [vehicleTypeId], references: [id])
+  package                  ServicePackage    @relation(fields: [packageId], references: [id])
   participants             WashParticipant[]
+  commissions              WashCommission[]
   photos                   WashPhoto[]
 
   @@index([createdById, createdAt])
@@ -124,6 +135,36 @@ model WashParticipant {
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([washId, userId])
+}
+
+model CommissionRule {
+  id            Int              @id @default(autoincrement())
+  scopeKey      String           @db.VarChar(100)
+  type          CommissionType
+  value         Decimal          @db.Decimal(10, 2)
+  category      ServiceCategory?
+  userId        Int
+  vehicleTypeId Int?
+  packageId     Int?
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleType   VehicleType?     @relation(fields: [vehicleTypeId], references: [id], onDelete: Cascade)
+  package       ServicePackage?  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scopeKey])
+  @@index([packageId, vehicleTypeId])
+}
+
+model WashCommission {
+  washId Int
+  userId Int
+  type   CommissionType
+  value  Decimal        @db.Decimal(10, 2)
+  amount Decimal        @db.Decimal(10, 2)
+  wash   Wash           @relation(fields: [washId], references: [id], onDelete: Cascade)
+  user   User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([washId, userId])
+  @@index([userId])
 }
 
 model AppSetting {

@@ -408,7 +408,11 @@ export function RegisterWash() {
             </div>
             <div className="chip-list">
               {data.users
-                .filter((user) => user.id !== data.user.id)
+                .filter(
+                  (user) =>
+                    user.id !== data.user.id &&
+                    user.role !== "ADMINISTRATIVE",
+                )
                 .map((user) => {
                   const selected = participants.includes(user.id);
                   return (

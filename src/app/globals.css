@@ -385,6 +385,62 @@ label em {
   display: none;
 }
 
+.pwa-install {
+  position: fixed;
+  z-index: 80;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+}
+
+.pwa-install-button,
+.pwa-install-help {
+  border: 1px solid #35383e;
+  color: #fff;
+  background: rgba(16, 17, 20, 0.96);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(14px);
+}
+
+.pwa-install-button {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 14px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.pwa-install-help {
+  width: min(330px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.pwa-install-help > svg {
+  margin-top: 2px;
+  color: var(--yellow);
+}
+
+.pwa-install-help p {
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.pwa-install-help button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  color: #aeb3bd;
+  background: none;
+}
+
 .mobile-page,
 .admin-page {
   width: min(100%, 1120px);
@@ -1038,6 +1094,70 @@ label em {
   line-height: 1.45;
 }
 
+.record-financials {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.record-financials > div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid #e2e5e8;
+  border-radius: 11px;
+  background: #f8f9fa;
+}
+
+.record-financials span {
+  color: var(--muted);
+  font-size: 0.61rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.record-financials strong {
+  color: #68500e;
+  font-size: 0.82rem;
+}
+
+.commission-breakdown {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.commission-breakdown > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid #e4e6e9;
+  border-radius: 99px;
+  color: #68707b;
+  background: #fff;
+  font-size: 0.64rem;
+}
+
+.commission-breakdown > span.selected {
+  border-color: #e0bd55;
+  color: #6d5208;
+  background: var(--yellow-pale);
+}
+
+.commission-breakdown b {
+  color: var(--ink);
+}
+
+.commission-breakdown strong {
+  color: #765800;
+}
+
 .record-photos {
   grid-column: 2;
   display: flex;
@@ -1235,6 +1355,11 @@ label em {
   background: #eef0f3;
 }
 
+.role-badge.administrative {
+  color: #365b79;
+  background: #e7f1f8;
+}
+
 .logout-button {
   width: 100%;
   margin-top: 10px;
@@ -1306,6 +1431,107 @@ label em {
   box-shadow: 0 9px 30px rgba(25, 28, 34, 0.05);
 }
 
+.admin-history-summary {
+  display: grid;
+  gap: 20px;
+}
+
+.admin-history-filters {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.7fr) minmax(360px, 1.3fr);
+  align-items: end;
+  gap: 12px;
+}
+
+.admin-history-filters .user-filter {
+  color: #626a75;
+}
+
+.admin-history-filters .period-tabs {
+  margin-top: 0;
+}
+
+.admin-history-filters .period-tabs button {
+  border-color: #dde0e4;
+  color: #5e6671;
+  background: #f7f8f9;
+}
+
+.admin-history-filters .period-tabs button.selected {
+  border-color: var(--yellow-strong);
+  color: #17130a;
+  background: var(--yellow);
+}
+
+.admin-history-filters .range-fields,
+.admin-history-filters .period-caption {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.admin-history-filters .range-fields label,
+.admin-history-filters .period-caption {
+  color: #69717c;
+}
+
+.admin-history-filters .range-fields input {
+  color-scheme: light;
+  border-color: #dcdfe3;
+  color: var(--ink);
+  background: #fff;
+}
+
+.financial-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.financial-stats > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 7px;
+  padding: 15px;
+  border: 1px solid #e2e4e7;
+  border-radius: 14px;
+  background: #f8f9fa;
+}
+
+.financial-stats svg {
+  grid-row: 1 / 3;
+  align-self: center;
+  color: #a77900;
+}
+
+.financial-stats span {
+  color: #777f89;
+  font-size: 0.62rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.financial-stats strong {
+  overflow: hidden;
+  color: #282b30;
+  font-size: 1.05rem;
+  text-overflow: ellipsis;
+}
+
+.admin-history-list {
+  min-height: 240px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 18px 0 0;
+}
+
+.admin-history-list .empty-state {
+  grid-column: 1 / -1;
+  border: 1px solid #e0e3e7;
+  border-radius: 22px;
+  background: #fff;
+}
+
 .price-table-wrap {
   margin-top: 22px;
   overflow-x: auto;
@@ -1315,7 +1541,7 @@ label em {
 
 .price-table {
   width: 100%;
-  min-width: 690px;
+  min-width: 620px;
   border-collapse: collapse;
 }
 
@@ -1333,7 +1559,7 @@ label em {
 }
 
 .price-table tbody th {
-  width: 190px;
+  width: 150px;
 }
 
 .price-table tbody th span {
@@ -1345,6 +1571,31 @@ label em {
   color: #969da6;
   font-size: 0.63rem;
   font-weight: 600;
+}
+
+.price-table tbody .price-category-row th {
+  width: auto;
+  padding: 16px 18px;
+  border-top: 8px solid #fff;
+  border-bottom-color: #e5d39a;
+  background:
+    linear-gradient(90deg, rgba(255, 194, 28, 0.2), rgba(255, 244, 207, 0.5));
+}
+
+.price-table tbody .price-category-row:first-child th {
+  border-top: 0;
+}
+
+.price-table .price-category-row th span {
+  color: #2d3035;
+  font-size: 0.86rem;
+}
+
+.price-table .price-category-row th small {
+  display: block;
+  margin-top: 3px;
+  color: #77705e;
+  font-size: 0.65rem;
 }
 
 .compact-money {
@@ -1363,6 +1614,290 @@ label em {
   padding: 0 8px;
   font-size: 0.76rem;
   font-weight: 700;
+}
+
+.commission-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) 1fr;
+  align-items: end;
+  gap: 18px;
+  margin-top: 22px;
+  padding: 15px;
+  border: 1px solid #e5d39a;
+  border-radius: 15px;
+  background: var(--yellow-pale);
+}
+
+.commission-toolbar p {
+  padding-bottom: 10px;
+  color: #786d50;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.price-free-note {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid #e4e6e9;
+  border-radius: 12px;
+  color: #68707b;
+  background: #f7f8f9;
+  font-size: 0.72rem;
+}
+
+.commission-editor {
+  display: grid;
+  gap: 22px;
+}
+
+.commission-editor .commission-toolbar {
+  margin-top: 0;
+}
+
+.commission-rule-section {
+  display: grid;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid #e8eaed;
+}
+
+.commission-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.commission-section-heading h3 {
+  font-size: 0.92rem;
+}
+
+.commission-section-heading p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.commission-section-heading > span {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 99px;
+  color: #785a08;
+  background: var(--yellow-pale);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.commission-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commission-rule-grid.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.commission-rule-card {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(140px, 0.72fr) minmax(110px, 0.5fr);
+  align-items: end;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #e1e4e7;
+  border-radius: 15px;
+  background: #fff;
+}
+
+.commission-rule-card > div > strong {
+  font-size: 0.78rem;
+}
+
+.commission-rule-card > div > p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.commission-rule-card label {
+  gap: 5px;
+  font-size: 0.6rem;
+}
+
+.commission-rule-card .commission-type,
+.commission-rule-card input {
+  min-height: 40px;
+}
+
+.commission-rule-card > small {
+  grid-column: 1 / -1;
+  padding: 8px 10px;
+  border-radius: 9px;
+  color: #6c634b;
+  background: #fff8df;
+  font-size: 0.63rem;
+  line-height: 1.35;
+}
+
+.commission-value-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #856200;
+  font-size: 0.75rem;
+  font-weight: 850;
+}
+
+.commission-value-control input {
+  min-width: 0;
+  padding: 0 10px;
+  font-weight: 750;
+}
+
+.commission-exceptions {
+  display: grid;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid #e8eaed;
+}
+
+.commission-exceptions > .secondary-button {
+  width: max-content;
+}
+
+.commission-exception-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e1e4e7;
+  border-radius: 14px;
+  background: #f8f9fa;
+}
+
+.commission-exception-form label {
+  gap: 5px;
+  font-size: 0.6rem;
+}
+
+.commission-exception-form select,
+.commission-exception-form input,
+.commission-exception-form .primary-button {
+  min-height: 42px;
+}
+
+.commission-exception-form .primary-button {
+  grid-column: 1 / -1;
+  width: max-content;
+}
+
+.commission-exception-list {
+  display: grid;
+  gap: 7px;
+}
+
+.commission-exception-list > div {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid #e1e4e7;
+  border-radius: 12px;
+}
+
+.commission-exception-list span {
+  display: grid;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
+.commission-exception-list b {
+  color: var(--ink);
+  font-size: 0.72rem;
+}
+
+.commission-exception-list strong {
+  color: #765800;
+  font-size: 0.75rem;
+}
+
+.commission-exception-list button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: #a33c3c;
+  background: #ffeded;
+}
+
+.price-table .vehicle-name,
+.price-table .calculated-commission,
+.price-table .calculated-profit {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.price-table .calculated-commission {
+  color: #765800;
+}
+
+.price-table .custom-price-label {
+  color: #6f7781;
+  font-size: 0.69rem;
+  font-weight: 750;
+}
+
+.price-table .calculated-profit {
+  color: #0d6848;
+}
+
+.price-table .calculated-profit.negative {
+  color: #a12f2f;
+}
+
+.price-table .commission-type {
+  min-width: 118px;
+  min-height: 38px;
+  padding: 0 38px 0 10px;
+  appearance: none;
+  -webkit-appearance: none;
+  font-size: 0.7rem;
+}
+
+.commission-type-control {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+
+.commission-type-control > svg {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  color: #626a75;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.commission-type-control:focus-within > svg {
+  color: #9a7000;
+}
+
+.commission-type-control > select:disabled + svg {
+  color: #a5abb3;
+}
+
+.price-table input:disabled,
+.price-table select:disabled {
+  color: #636a73;
+  background: #f1f2f3;
+  opacity: 1;
 }
 
 .catalog-columns,
@@ -1679,6 +2214,36 @@ label em {
     padding: 16px;
   }
 
+  .admin-history-summary {
+    gap: 16px;
+  }
+
+  .admin-history-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-history-filters .range-fields,
+  .admin-history-filters .period-caption {
+    grid-column: auto;
+  }
+
+  .financial-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .financial-stats > div {
+    padding: 13px;
+  }
+
+  .financial-stats strong {
+    font-size: 0.92rem;
+  }
+
+  .admin-history-list {
+    grid-template-columns: 1fr;
+    padding: 14px 0 0;
+  }
+
   .record-main {
     gap: 8px;
   }
@@ -1708,6 +2273,133 @@ label em {
   .admin-tabs button {
     min-width: 0;
     font-size: 0.7rem;
+  }
+
+  .commission-toolbar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .commission-toolbar p {
+    padding-bottom: 0;
+  }
+
+  .commission-rule-grid,
+  .commission-rule-grid.single {
+    grid-template-columns: 1fr;
+  }
+
+  .commission-rule-card {
+    grid-template-columns: 1fr;
+  }
+
+  .commission-rule-card > small {
+    grid-column: auto;
+  }
+
+  .commission-section-heading {
+    align-items: flex-start;
+  }
+
+  .commission-exceptions > .secondary-button,
+  .commission-exception-form .primary-button {
+    width: 100%;
+  }
+
+  .commission-exception-form {
+    grid-template-columns: 1fr;
+  }
+
+  .commission-exception-form .primary-button {
+    grid-column: auto;
+  }
+
+  .price-table-wrap {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .price-table {
+    min-width: 0;
+    display: block;
+  }
+
+  .price-table thead {
+    display: none;
+  }
+
+  .price-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .price-table tr {
+    display: grid;
+    padding: 12px;
+    border: 1px solid #e0e3e7;
+    border-radius: 15px;
+    background: #fff;
+  }
+
+  .price-table tr.price-category-row {
+    display: block;
+    margin-top: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .price-table tr.price-category-row:first-child {
+    margin-top: 0;
+  }
+
+  .price-table th,
+  .price-table td,
+  .price-table tbody th {
+    width: auto;
+    display: grid;
+    grid-template-columns: 94px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 8px 4px;
+    border-bottom: 1px solid #eef0f2;
+  }
+
+  .price-table tbody .price-category-row th {
+    display: block;
+    padding: 14px 16px;
+    border: 1px solid #e5d39a;
+    border-radius: 14px;
+  }
+
+  .price-table .price-category-row th::before {
+    content: none;
+  }
+
+  .price-table tr > :last-child {
+    border-bottom: 0;
+  }
+
+  .price-table th::before,
+  .price-table td::before {
+    content: attr(data-label);
+    color: #858c95;
+    font-size: 0.6rem;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .price-table .compact-money,
+  .price-table .commission-type,
+  .price-table .commission-type-control {
+    width: 100%;
+  }
+
+  .price-table .compact-money input {
+    width: 100%;
   }
 
   .catalog-columns,

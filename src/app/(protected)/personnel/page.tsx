@@ -31,7 +31,11 @@ export default async function PersonnelPage() {
             <strong>{currentUser.name}</strong>
             <span>{currentUser.email}</span>
             <small>
-              {currentUser.role === "ADMIN" ? "Administrador" : "Encargado"}
+              {currentUser.role === "ADMIN"
+                ? "Administrador"
+                : currentUser.role === "ADMINISTRATIVE"
+                  ? "Administrativo"
+                  : "Encargado"}
             </small>
           </div>
         </div>
@@ -59,7 +63,11 @@ export default async function PersonnelPage() {
               </div>
               <div className={`role-badge ${user.role.toLowerCase()}`}>
                 {user.role === "ADMIN" ? <ShieldCheck size={15} /> : <BadgeCheck size={15} />}
-                {user.role === "ADMIN" ? "Admin" : "Encargado"}
+                {user.role === "ADMIN"
+                  ? "Admin"
+                  : user.role === "ADMINISTRATIVE"
+                    ? "Administrativo"
+                    : "Encargado"}
               </div>
             </article>
           ))}

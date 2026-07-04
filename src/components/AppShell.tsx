@@ -14,7 +14,7 @@ import {
 type AppShellProps = {
   user: {
     name: string;
-    role: "ADMIN" | "EMPLOYEE";
+    role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
   };
   children: React.ReactNode;
 };
@@ -30,7 +30,12 @@ export function AppShell({ user, children }: AppShellProps) {
   const links =
     user.role === "ADMIN"
       ? [...baseLinks, { href: "/admin", label: "Administrar", icon: Settings }]
-      : baseLinks;
+      : user.role === "ADMINISTRATIVE"
+        ? [
+            { href: "/personnel", label: "Personal", icon: Users },
+            { href: "/admin", label: "Administrar", icon: Settings },
+          ]
+        : baseLinks;
 
   return (
     <div className="app-frame">
@@ -58,7 +63,13 @@ export function AppShell({ user, children }: AppShellProps) {
         </nav>
         <div className="sidebar-user">
           <span>{user.name}</span>
-          <small>{user.role === "ADMIN" ? "Administrador" : "Encargado"}</small>
+          <small>
+            {user.role === "ADMIN"
+              ? "Administrador"
+              : user.role === "ADMINISTRATIVE"
+                ? "Administrativo"
+                : "Encargado"}
+          </small>
           <form action="/api/auth/logout" method="post">
             <button type="submit">
               <LogOut size={17} /> Cerrar sesión

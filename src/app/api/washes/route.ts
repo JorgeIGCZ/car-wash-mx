@@ -1,6 +1,10 @@
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import {
+  canAccessAdministration,
+  getCurrentUser,
+} from "@/lib/auth";
 import { localDayRange } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getR2ObjectUrl } from "@/lib/r2";
@@ -54,13 +58,32 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("from"),
     request.nextUrl.searchParams.get("to"),
   );
-  const visibility = user.role === "ADMIN" ? {} : { createdById: user.id };
-  const where = {
+  const globalScope =
+    request.nextUrl.searchParams.get("scope") === "all" &&
+    canAccessAdministration(user.role);
+  const requestedUserId = Number(request.nextUrl.searchParams.get("userId"));
+  const hasRequestedUser =
+    globalScope && Number.isInteger(requestedUserId) && requestedUserId > 0;
+  const userFilter =
+    hasRequestedUser
+      ? {
+          OR: [
+            { createdById: requestedUserId },
+            { participants: { some: { userId: requestedUserId } } },
+          ],
+        }
+      : {};
+  const visibility: Prisma.WashWhereInput = globalScope
+    ? {}
+    : { createdById: user.id };
+  const where: Prisma.WashWhereInput = {
     ...visibility,
+    ...userFilter,
     createdAt: { gte: range.start, lt: range.end },
   };
 
-  const [washes, total] = await Promise.all([
+  const [washes, total, commissionTotal, selectedCommissionTotal] =
+    await Promise.all([
     prisma.wash.findMany({
       where,
       include: {
@@ -69,6 +92,10 @@ export async function GET(request: NextRequest) {
         createdBy: { select: { id: true, name: true } },
         participants: {
           include: { user: { select: { id: true, name: true } } },
+        },
+        commissions: {
+          include: { user: { select: { id: true, name: true } } },
+          orderBy: { user: { name: "asc" } },
         },
         photos: {
           select: {
@@ -86,28 +113,63 @@ export async function GET(request: NextRequest) {
       where,
       _sum: { chargedPrice: true },
     }),
-  ]);
+    prisma.washCommission.aggregate({
+      where: { wash: where },
+      _sum: { amount: true },
+    }),
+      prisma.washCommission.aggregate({
+        where: {
+          wash: where,
+          ...(hasRequestedUser ? { userId: requestedUserId } : {}),
+        },
+        _sum: { amount: true },
+      }),
+    ]);
 
   const serializedWashes = await Promise.all(
-    washes.map(async (wash) => ({
-      ...wash,
-      chargedPrice: Number(wash.chargedPrice),
-      photos: await Promise.all(
-        wash.photos.map(async (photo) => ({
-          id: photo.id,
-          width: photo.width,
-          height: photo.height,
-          url: await getR2ObjectUrl(photo.objectKey).catch(() => null),
-        })),
-      ),
-    })),
+    washes.map(async (wash) => {
+      const chargedPrice = Number(wash.chargedPrice);
+      const commissions = wash.commissions.map((commission) => ({
+        ...commission,
+        value: Number(commission.value),
+        amount: Number(commission.amount),
+      }));
+      const totalCommission = commissions.reduce(
+        (sum, commission) => sum + commission.amount,
+        0,
+      );
+
+      return {
+        ...wash,
+        chargedPrice,
+        commissions,
+        totalCommission,
+        netIncome: chargedPrice - totalCommission,
+        photos: await Promise.all(
+          wash.photos.map(async (photo) => ({
+            id: photo.id,
+            width: photo.width,
+            height: photo.height,
+            url: await getR2ObjectUrl(photo.objectKey).catch(() => null),
+          })),
+        ),
+      };
+    }),
   );
 
+  const income = Number(total._sum.chargedPrice ?? 0);
+  const commissions = Number(commissionTotal._sum.amount ?? 0);
+  const selectedCommission = Number(
+    selectedCommissionTotal._sum.amount ?? 0,
+  );
   return NextResponse.json({
     washes: serializedWashes,
     stats: {
       count: washes.length,
-      income: Number(total._sum.chargedPrice ?? 0),
+      income,
+      commissions,
+      selectedCommission,
+      netIncome: income - commissions,
     },
     range: {
       start: range.start,
@@ -120,6 +182,12 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Sesión no válida." }, { status: 401 });
+  }
+  if (user.role === "ADMINISTRATIVE") {
+    return NextResponse.json(
+      { error: "El perfil administrativo no registra lavados." },
+      { status: 403 },
+    );
   }
 
   const parsed = createWashSchema.safeParse(await request.json());
@@ -179,6 +247,47 @@ export async function POST(request: Request) {
     select: { id: true },
   });
 
+  const workerIds = [
+    user.id,
+    ...validParticipants
+      .filter((participant) => participant.id !== user.id)
+      .map((participant) => participant.id),
+  ];
+  const ruleScopeKeys = [
+    `package:${servicePackage.id}:vehicle:${vehicleType.id}`,
+    `package:${servicePackage.id}`,
+    `category:${servicePackage.category}`,
+  ];
+  const commissionRules = await prisma.commissionRule.findMany({
+    where: {
+      userId: { in: workerIds },
+      scopeKey: { in: ruleScopeKeys },
+    },
+  });
+  const rulesByUser = new Map<
+    number,
+    Map<string, (typeof commissionRules)[number]>
+  >();
+  for (const rule of commissionRules) {
+    const userRules = rulesByUser.get(rule.userId) ?? new Map();
+    userRules.set(rule.scopeKey, rule);
+    rulesByUser.set(rule.userId, userRules);
+  }
+  const commissions = workerIds.map((userId) => {
+    const userRules = rulesByUser.get(userId);
+    const rule = ruleScopeKeys
+      .map((scopeKey) => userRules?.get(scopeKey))
+      .find(Boolean);
+    const type = rule?.type ?? "PERCENTAGE";
+    const value = Number(rule?.value ?? 0);
+    const amount =
+      type === "PERCENTAGE"
+        ? Math.round(chargedPrice * value) / 100
+        : value;
+
+    return { userId, type, value, amount };
+  });
+
   const wash = await prisma.wash.create({
     data: {
       plate: parsed.data.plate || null,
@@ -192,6 +301,9 @@ export async function POST(request: Request) {
         create: validParticipants
           .filter((participant) => participant.id !== user.id)
           .map((participant) => ({ userId: participant.id })),
+      },
+      commissions: {
+        create: commissions,
       },
     },
   });

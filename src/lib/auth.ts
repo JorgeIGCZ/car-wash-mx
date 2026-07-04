@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? "turbo_wash_session";
 const SESSION_DAYS = 14;
+type AppRole = "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
+
+export function canAccessAdministration(role: AppRole) {
+  return role === "ADMIN" || role === "ADMINISTRATIVE";
+}
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -75,5 +80,11 @@ export async function requireUser() {
 export async function requireAdmin() {
   const user = await requireUser();
   if (user.role !== "ADMIN") redirect("/register");
+  return user;
+}
+
+export async function requireAdministration() {
+  const user = await requireUser();
+  if (!canAccessAdministration(user.role)) redirect("/register");
   return user;
 }

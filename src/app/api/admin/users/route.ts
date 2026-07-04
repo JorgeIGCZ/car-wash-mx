@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import {
+  canAccessAdministration,
+  getCurrentUser,
+} from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const createSchema = z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().email(),
   password: z.string().min(10).max(100),
-  role: z.enum(["ADMIN", "EMPLOYEE"]).default("EMPLOYEE"),
+  role: z.enum(["ADMIN", "ADMINISTRATIVE", "EMPLOYEE"]).default("EMPLOYEE"),
 });
 const updateSchema = z.object({
   id: z.number().int().positive(),
   name: z.string().trim().min(2).max(100).optional(),
-  role: z.enum(["ADMIN", "EMPLOYEE"]).optional(),
+  role: z.enum(["ADMIN", "ADMINISTRATIVE", "EMPLOYEE"]).optional(),
   active: z.boolean().optional(),
   password: z.string().min(10).max(100).optional(),
 });
@@ -24,7 +27,8 @@ async function currentAdmin() {
 }
 
 export async function GET() {
-  if (!(await currentAdmin())) {
+  const user = await getCurrentUser();
+  if (!user || !canAccessAdministration(user.role)) {
     return NextResponse.json({ error: "Acceso restringido." }, { status: 403 });
   }
   const users = await prisma.user.findMany({

@@ -2,7 +2,7 @@ export type AppUser = {
   id: number;
   name: string;
   email: string;
-  role: "ADMIN" | "EMPLOYEE";
+  role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
   active: boolean;
   mustChangePassword?: boolean;
 };
@@ -35,6 +35,17 @@ export type ServicePriceOption = {
   packageId: number;
 };
 
+export type CommissionRuleOption = {
+  id: number;
+  scopeKey: string;
+  type: "PERCENTAGE" | "FIXED";
+  value: number;
+  category: "NORMAL" | "INTERIOR" | "SPECIAL" | null;
+  userId: number;
+  vehicleTypeId: number | null;
+  packageId: number | null;
+};
+
 export type BootstrapData = {
   user: AppUser;
   users: AppUser[];
@@ -51,6 +62,8 @@ export type WashRecord = {
   id: number;
   plate: string | null;
   chargedPrice: number;
+  totalCommission: number;
+  netIncome: number;
   notes: string | null;
   customServiceDescription: string | null;
   createdAt: string;
@@ -58,6 +71,12 @@ export type WashRecord = {
   package: { name: string; category: "NORMAL" | "INTERIOR" | "SPECIAL" };
   createdBy: { id: number; name: string };
   participants: { user: { id: number; name: string } }[];
+  commissions: {
+    type: "PERCENTAGE" | "FIXED";
+    value: number;
+    amount: number;
+    user: { id: number; name: string };
+  }[];
   photos: {
     id: number;
     url: string | null;

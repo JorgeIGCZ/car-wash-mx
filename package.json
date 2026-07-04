@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:production": "node --env-file=.env.production node_modules/prisma/build/index.js migrate deploy",
+    "db:status:production": "node --env-file=.env.production node_modules/prisma/build/index.js migrate status",
     "db:seed": "prisma db seed"
   },
   "prisma": {

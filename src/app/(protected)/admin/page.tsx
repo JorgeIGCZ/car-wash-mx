@@ -1,7 +1,7 @@
 import { AdminPanel } from "@/components/AdminPanel";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdministration } from "@/lib/auth";
 
 export default async function AdminPage() {
-  await requireAdmin();
+  await requireAdministration();
   return <AdminPanel />;
 }

@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   const { start, end } = localDayRange();
-  const visibility = user.role === "ADMIN" ? {} : { createdById: user.id };
+  const visibility = { createdById: user.id };
 
   const [vehicleTypes, packages, prices, users, todayCount, todayIncome] =
     await Promise.all([

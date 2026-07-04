@@ -129,7 +129,7 @@ export function AdminPanel() {
                 <Settings size={18} /> Catálogo
               </button>
               <button className={tab === "USERS" ? "selected" : ""} onClick={() => setTab("USERS")}>
-                <Users size={18} /> Usuarios
+                <Users size={18} /> Personal
               </button>
               <button className={tab === "SETTINGS" ? "selected" : ""} onClick={() => setTab("SETTINGS")}>
                 <CalendarRange size={18} /> Semana
@@ -1122,7 +1122,7 @@ function UserEditor({
       <section className="admin-section">
         <div className="content-heading">
           <Users size={23} />
-          <div><h2>Usuarios</h2><p>Administra permisos y acceso.</p></div>
+          <div><h2>Personal</h2><p>Administra cuentas, roles y acceso.</p></div>
         </div>
         <div className="admin-user-list">
           {users.map((user) => (
@@ -1155,7 +1155,7 @@ function UserEditor({
       <section className="admin-section">
         <div className="content-heading">
           <UserPlus size={23} />
-          <div><h2>Nuevo usuario</h2><p>Crea una cuenta para un encargado o administrador.</p></div>
+          <div><h2>Nuevo usuario</h2><p>Crea una cuenta para el personal.</p></div>
         </div>
         <form className="stack-form" onSubmit={create}>
           <label>Nombre<input name="name" required /></label>

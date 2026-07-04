@@ -16,10 +16,10 @@ export function PageHero({
       <div className="hero-title-row">
         <div className="hero-logo">
           <Image
-            src="/turbo-wash-logo.jpg"
+            src="/turbo-wash-logo.png"
             alt=""
             width={100}
-            height={56}
+            height={100}
             priority
           />
         </div>

@@ -54,10 +54,10 @@ export function ChangePasswordForm({
       <section className="login-card">
         <div className="login-brand">
           <Image
-            src="/turbo-wash-logo.jpg"
+            src="/turbo-wash-logo.png"
             alt="Turbo Wash Auto Spa"
             width={420}
-            height={237}
+            height={420}
             priority
           />
         </div>

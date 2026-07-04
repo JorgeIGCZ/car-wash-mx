@@ -4,11 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
+  CircleUserRound,
   ClipboardPlus,
   History,
   LogOut,
   Settings,
-  Users,
 } from "lucide-react";
 
 type AppShellProps = {
@@ -22,7 +22,7 @@ type AppShellProps = {
 const baseLinks = [
   { href: "/register", label: "Registrar", icon: ClipboardPlus },
   { href: "/history", label: "Historial", icon: History },
-  { href: "/personnel", label: "Personal", icon: Users },
+  { href: "/personnel", label: "Perfil", icon: CircleUserRound },
 ];
 
 export function AppShell({ user, children }: AppShellProps) {
@@ -32,7 +32,7 @@ export function AppShell({ user, children }: AppShellProps) {
       ? [...baseLinks, { href: "/admin", label: "Administrar", icon: Settings }]
       : user.role === "ADMINISTRATIVE"
         ? [
-            { href: "/personnel", label: "Personal", icon: Users },
+            { href: "/personnel", label: "Perfil", icon: CircleUserRound },
             { href: "/admin", label: "Administrar", icon: Settings },
           ]
         : baseLinks;
@@ -42,10 +42,10 @@ export function AppShell({ user, children }: AppShellProps) {
       <aside className="desktop-sidebar">
         <div className="sidebar-logo">
           <Image
-            src="/turbo-wash-logo.jpg"
+            src="/turbo-wash-logo.png"
             alt="Turbo Wash"
             width={220}
-            height={124}
+            height={220}
             priority
           />
         </div>

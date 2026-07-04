@@ -1,6 +1,6 @@
-const CACHE_NAME = "turbo-wash-public-v1";
+const CACHE_NAME = "turbo-wash-public-v2";
 const PUBLIC_ASSETS = [
-  "/turbo-wash-logo.jpg",
+  "/turbo-wash-logo.png",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/icon-maskable-512.png",
@@ -39,7 +39,7 @@ self.addEventListener("fetch", (event) => {
     request.method !== "GET" ||
     url.origin !== self.location.origin ||
     (!url.pathname.startsWith("/icons/") &&
-      url.pathname !== "/turbo-wash-logo.jpg")
+      url.pathname !== "/turbo-wash-logo.png")
   ) {
     return;
   }

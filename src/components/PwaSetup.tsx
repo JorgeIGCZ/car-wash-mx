@@ -8,6 +8,8 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
+const STYLE_RECOVERY_KEY = "turbo-wash-style-recovery";
+
 function isStandalone() {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
@@ -23,6 +25,27 @@ export function PwaSetup() {
   const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
+    const styleCheck = window.setTimeout(() => {
+      const appStylesLoaded = Array.from(document.styleSheets).some((sheet) =>
+        sheet.href?.includes("/_next/static/css/"),
+      );
+
+      try {
+        const currentPath = `${window.location.pathname}${window.location.search}`;
+
+        if (appStylesLoaded) {
+          window.sessionStorage.removeItem(STYLE_RECOVERY_KEY);
+        } else if (
+          window.sessionStorage.getItem(STYLE_RECOVERY_KEY) !== currentPath
+        ) {
+          window.sessionStorage.setItem(STYLE_RECOVERY_KEY, currentPath);
+          window.location.reload();
+        }
+      } catch {
+        // La app sigue visible aunque Safari bloquee sessionStorage.
+      }
+    }, 2500);
+
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {
         // La app sigue funcionando normalmente si el navegador bloquea el registro.
@@ -30,7 +53,7 @@ export function PwaSetup() {
     }
 
     if (isStandalone()) {
-      return;
+      return () => window.clearTimeout(styleCheck);
     }
 
     setIsIos(
@@ -52,6 +75,7 @@ export function PwaSetup() {
     window.addEventListener("appinstalled", clearInstallPrompt);
 
     return () => {
+      window.clearTimeout(styleCheck);
       window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
       window.removeEventListener("appinstalled", clearInstallPrompt);
     };

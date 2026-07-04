@@ -17,10 +17,10 @@ type Period = "TODAY" | "WEEK" | "MONTH" | "RANGE";
 
 type HistoryStats = {
   count: number;
-  income: number;
-  commissions: number;
+  income?: number;
+  commissions?: number;
   selectedCommission: number;
-  netIncome: number;
+  netIncome?: number;
 };
 
 type WashHistoryProps = {
@@ -109,36 +109,36 @@ export function WashHistory({
           {filters}
           <div className="financial-stats">
             <StatCard label="Servicios" value={String(stats.count)} />
-            <StatCard label="Ingresos" value={formatMoney(stats.income)} />
+            <StatCard label="Ingresos" value={formatMoney(stats.income ?? 0)} />
             <StatCard
               label={selectedUser === "ALL" ? "Comisiones" : "Comisión del usuario"}
               value={formatMoney(
                 selectedUser === "ALL"
-                  ? stats.commissions
+                  ? stats.commissions ?? 0
                   : stats.selectedCommission,
               )}
               icon="commission"
             />
             <StatCard
               label="Ganancia neta"
-              value={formatMoney(stats.netIncome)}
+              value={formatMoney(stats.netIncome ?? 0)}
               icon="net"
             />
           </div>
         </section>
       ) : (
-        <PageHero title="Mi historial de lavados">
+        <PageHero title="Mi historial y comisiones">
           {filters}
           <div className="hero-stats">
             <div>
-              <span>VEHÍCULOS</span>
+              <span>SERVICIOS</span>
               <strong>{stats.count}</strong>
-              <small>registrados por mí</small>
+              <small>en los que participé</small>
             </div>
             <div>
-              <span>INGRESOS</span>
-              <strong>{formatMoney(stats.income)}</strong>
-              <small>de mis registros</small>
+              <span>MI COMISIÓN</span>
+              <strong>{formatMoney(stats.selectedCommission)}</strong>
+              <small>ganada en el periodo</small>
             </div>
           </div>
         </PageHero>
@@ -168,7 +168,16 @@ export function WashHistory({
                     {wash.plate ? ` · ${wash.plate}` : ""}
                   </p>
                 </div>
-                <strong>{formatMoney(wash.chargedPrice)}</strong>
+                <div className="record-amount">
+                  <span>{embedded ? "Cobrado" : "Mi comisión"}</span>
+                  <strong>
+                    {formatMoney(
+                      embedded
+                        ? wash.chargedPrice ?? 0
+                        : wash.personalCommission,
+                    )}
+                  </strong>
+                </div>
               </div>
               <div className="record-meta">
                 <span>
@@ -193,11 +202,11 @@ export function WashHistory({
                   <div className="record-financials">
                     <div>
                       <span>Comisiones</span>
-                      <strong>{formatMoney(wash.totalCommission)}</strong>
+                      <strong>{formatMoney(wash.totalCommission ?? 0)}</strong>
                     </div>
                     <div>
                       <span>Ganancia</span>
-                      <strong>{formatMoney(wash.netIncome)}</strong>
+                      <strong>{formatMoney(wash.netIncome ?? 0)}</strong>
                     </div>
                   </div>
                   <div className="commission-breakdown">

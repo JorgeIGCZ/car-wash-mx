@@ -61,9 +61,10 @@ export type BootstrapData = {
 export type WashRecord = {
   id: number;
   plate: string | null;
-  chargedPrice: number;
-  totalCommission: number;
-  netIncome: number;
+  chargedPrice?: number;
+  totalCommission?: number;
+  netIncome?: number;
+  personalCommission: number;
   notes: string | null;
   customServiceDescription: string | null;
   createdAt: string;

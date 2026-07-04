@@ -75,7 +75,12 @@ export async function GET(request: NextRequest) {
       : {};
   const visibility: Prisma.WashWhereInput = globalScope
     ? {}
-    : { createdById: user.id };
+    : {
+        OR: [
+          { createdById: user.id },
+          { participants: { some: { userId: user.id } } },
+        ],
+      };
   const where: Prisma.WashWhereInput = {
     ...visibility,
     ...userFilter,
@@ -120,7 +125,13 @@ export async function GET(request: NextRequest) {
       prisma.washCommission.aggregate({
         where: {
           wash: where,
-          ...(hasRequestedUser ? { userId: requestedUserId } : {}),
+          ...(
+            globalScope
+              ? hasRequestedUser
+                ? { userId: requestedUserId }
+                : {}
+              : { userId: user.id }
+          ),
         },
         _sum: { amount: true },
       }),
@@ -128,8 +139,14 @@ export async function GET(request: NextRequest) {
 
   const serializedWashes = await Promise.all(
     washes.map(async (wash) => {
-      const chargedPrice = Number(wash.chargedPrice);
-      const commissions = wash.commissions.map((commission) => ({
+      const {
+        chargedPrice: rawChargedPrice,
+        commissions: rawCommissions,
+        photos,
+        ...washDetails
+      } = wash;
+      const chargedPrice = Number(rawChargedPrice);
+      const commissions = rawCommissions.map((commission) => ({
         ...commission,
         value: Number(commission.value),
         amount: Number(commission.amount),
@@ -138,15 +155,26 @@ export async function GET(request: NextRequest) {
         (sum, commission) => sum + commission.amount,
         0,
       );
+      const personalCommission =
+        commissions.find((commission) => commission.user.id === user.id)?.amount ?? 0;
 
       return {
-        ...wash,
-        chargedPrice,
-        commissions,
-        totalCommission,
-        netIncome: chargedPrice - totalCommission,
+        ...washDetails,
+        personalCommission,
+        ...(globalScope
+          ? {
+              chargedPrice,
+              commissions,
+              totalCommission,
+              netIncome: chargedPrice - totalCommission,
+            }
+          : {
+              commissions: commissions.filter(
+                (commission) => commission.user.id === user.id,
+              ),
+            }),
         photos: await Promise.all(
-          wash.photos.map(async (photo) => ({
+          photos.map(async (photo) => ({
             id: photo.id,
             width: photo.width,
             height: photo.height,
@@ -164,13 +192,18 @@ export async function GET(request: NextRequest) {
   );
   return NextResponse.json({
     washes: serializedWashes,
-    stats: {
-      count: washes.length,
-      income,
-      commissions,
-      selectedCommission,
-      netIncome: income - commissions,
-    },
+    stats: globalScope
+      ? {
+          count: washes.length,
+          income,
+          commissions,
+          selectedCommission,
+          netIncome: income - commissions,
+        }
+      : {
+          count: washes.length,
+          selectedCommission,
+        },
     range: {
       start: range.start,
       end: range.end,

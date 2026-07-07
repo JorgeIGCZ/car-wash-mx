@@ -2116,7 +2116,7 @@ label em {
 
   .app-content {
     margin-left: 0;
-    padding: 0 0 82px;
+    padding: max(10px, env(safe-area-inset-top)) 0 82px;
   }
 
   .mobile-page,

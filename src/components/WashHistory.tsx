@@ -10,10 +10,17 @@ import {
   Users,
 } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
+import { PhotoLightbox, type LightboxPhoto } from "@/components/PhotoLightbox";
 import { formatMoney } from "@/lib/format";
 import type { AppUser, WashRecord } from "@/types/domain";
 
 type Period = "TODAY" | "WEEK" | "MONTH" | "RANGE";
+
+type LightboxState = {
+  photos: LightboxPhoto[];
+  startIndex: number;
+  title: string;
+};
 
 type HistoryStats = {
   count: number;
@@ -48,6 +55,7 @@ export function WashHistory({
     netIncome: 0,
   });
   const [range, setRange] = useState<{ start: string; end: string } | null>(null);
+  const [lightbox, setLightbox] = useState<LightboxState | null>(null);
   const globalScope = scope === "ALL";
 
   const load = useCallback(async () => {
@@ -249,25 +257,41 @@ export function WashHistory({
               )}
               {wash.photos.some((photo) => photo.url) && (
                 <div className="record-photos">
-                  {wash.photos.map(
-                    (photo, index) =>
-                      photo.url && (
-                        <a
-                          href={photo.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          key={photo.id}
-                          aria-label={`Abrir fotografía ${index + 1} del lavado ${wash.id}`}
-                          style={{ backgroundImage: `url("${photo.url}")` }}
-                        />
-                      ),
-                  )}
+                  {wash.photos
+                    .filter(
+                      (photo): photo is (typeof photo & { url: string }) =>
+                        Boolean(photo.url),
+                    )
+                    .map((photo, index, availablePhotos) => (
+                      <button
+                        type="button"
+                        key={photo.id}
+                        aria-label={`Ver fotografía ${index + 1} de ${availablePhotos.length} del lavado ${wash.id}`}
+                        style={{ backgroundImage: `url("${photo.url}")` }}
+                        onClick={() =>
+                          setLightbox({
+                            photos: availablePhotos,
+                            startIndex: index,
+                            title: `Lavado #${wash.id}`,
+                          })
+                        }
+                      />
+                    ))}
                 </div>
               )}
             </article>
           ))
         )}
       </section>
+
+      {lightbox && (
+        <PhotoLightbox
+          photos={lightbox.photos}
+          startIndex={lightbox.startIndex}
+          title={lightbox.title}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   );
 }

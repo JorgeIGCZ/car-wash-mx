@@ -1200,15 +1200,113 @@ label em {
   padding-bottom: 3px;
 }
 
-.record-photos a {
+.record-photos button {
   flex: 0 0 86px;
   width: 86px;
   aspect-ratio: 4 / 3;
+  padding: 0;
   border: 1px solid #e0e3e7;
   border-radius: 10px;
   background-color: #eef0f2;
   background-position: center;
   background-size: cover;
+  cursor: zoom-in;
+}
+
+.photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 11, 13, 0.94);
+  touch-action: pan-y;
+}
+
+.photo-lightbox img {
+  max-width: 100vw;
+  max-height: calc(100dvh - 120px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 6px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.photo-lightbox-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: linear-gradient(rgba(10, 11, 13, 0.7), transparent);
+}
+
+.photo-lightbox-bar button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+}
+
+.photo-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+}
+
+.photo-lightbox-nav.prev {
+  left: calc(8px + env(safe-area-inset-left));
+}
+
+.photo-lightbox-nav.next {
+  right: calc(8px + env(safe-area-inset-right));
+}
+
+.photo-lightbox-dots {
+  position: absolute;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+}
+
+.photo-lightbox-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.photo-lightbox-dots span.active {
+  background: var(--yellow);
 }
 
 .profile-summary {

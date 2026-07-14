@@ -13,6 +13,8 @@ import {
   Camera,
   CarFront,
   Check,
+  ChevronLeft,
+  ChevronRight,
   ClipboardPlus,
   Droplets,
   Layers3,
@@ -59,6 +61,9 @@ const categoryOptions = {
   },
 };
 
+const wizardSteps = ["Servicio", "Vehículo", "Paquete", "Detalles"] as const;
+const lastWizardStep = wizardSteps.length - 1;
+
 function packageIcon(item: ServicePackageOption) {
   if (item.category === "SPECIAL") return ClipboardPlus;
   if (item.slug.includes("asientos")) return Armchair;
@@ -69,11 +74,15 @@ function packageIcon(item: ServicePackageOption) {
 
 export function RegisterWash() {
   const [data, setData] = useState<BootstrapData | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
   const [category, setCategory] = useState<keyof typeof categoryLabels>("NORMAL");
   const [vehicleId, setVehicleId] = useState<number | null>(null);
   const [packageId, setPackageId] = useState<number | null>(null);
   const [participants, setParticipants] = useState<number[]>([]);
   const [customPrice, setCustomPrice] = useState("");
+  const [plate, setPlate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [customServiceDescription, setCustomServiceDescription] = useState("");
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
@@ -120,14 +129,86 @@ export function RegisterWash() {
       price.vehicleTypeId === vehicleId && price.packageId === packageId,
   )?.amount;
   const total = needsCustomPrice ? Number(customPrice) || 0 : configuredPrice ?? 0;
-  const canSave =
-    Boolean(vehicleId && packageId && total > 0) &&
-    (!selectedPackage?.requiresDescription || true);
+  const hasRequiredDescription =
+    !selectedPackage?.requiresDescription || customServiceDescription.trim().length > 0;
+  const hasRequiredCustomPrice = !needsCustomPrice || Number(customPrice) > 0;
+  const hasConfiguredPackagePrice =
+    Boolean(packageId && selectedPackage) && (Boolean(needsCustomPrice) || Boolean(configuredPrice));
+  const canSave = Boolean(
+    vehicleId &&
+      packageId &&
+      total > 0 &&
+      hasRequiredCustomPrice &&
+      hasRequiredDescription,
+  );
+  const canAdvance =
+    currentStep === 0 ||
+    (currentStep === 1 && Boolean(vehicleId)) ||
+    (currentStep === 2 && hasConfiguredPackagePrice) ||
+    (currentStep === 3 && canSave);
 
   function chooseCategory(value: keyof typeof categoryLabels) {
     setCategory(value);
     setPackageId(null);
+    setCustomServiceDescription("");
     setMessage(null);
+    setCurrentStep(1);
+  }
+
+  function chooseVehicle(id: number) {
+    setVehicleId(id);
+    setPackageId(null);
+    setCustomPrice("");
+    setCustomServiceDescription("");
+    setMessage(null);
+    setCurrentStep(2);
+  }
+
+  function choosePackage(item: ServicePackageOption, price?: number) {
+    const custom = Boolean(selectedVehicle?.requiresCustom || item.requiresCustomPrice);
+    setPackageId(item.id);
+    if (!custom) setCustomPrice("");
+    if (!item.requiresDescription) setCustomServiceDescription("");
+
+    if (!custom && !price) {
+      setMessage({ type: "error", text: "Este paquete no tiene un precio configurado." });
+      return;
+    }
+
+    setMessage(null);
+    setCurrentStep(3);
+  }
+
+  function wizardError() {
+    if (currentStep === 1) return "Selecciona el tipo de vehículo.";
+    if (currentStep === 2) {
+      if (!packageId) return "Selecciona el paquete.";
+      return "Este paquete no tiene un precio configurado.";
+    }
+    if (needsCustomPrice && !hasRequiredCustomPrice) return "Captura el precio acordado.";
+    if (!hasRequiredDescription) return "Describe el servicio especial.";
+    return "Completa los datos requeridos.";
+  }
+
+  function goNext() {
+    if (!canAdvance) {
+      setMessage({ type: "error", text: wizardError() });
+      return;
+    }
+    setMessage(null);
+    setCurrentStep((step) => Math.min(lastWizardStep, step + 1));
+  }
+
+  function goBack() {
+    setMessage(null);
+    setCurrentStep((step) => Math.max(0, step - 1));
+  }
+
+  function canOpenStep(step: number) {
+    if (step <= currentStep) return true;
+    if (step === 1) return true;
+    if (step === 2) return Boolean(vehicleId);
+    return hasConfiguredPackagePrice;
   }
 
   function selectPhotos(event: ChangeEvent<HTMLInputElement>) {
@@ -158,7 +239,6 @@ export function RegisterWash() {
     if (!vehicleId || !packageId) return;
 
     const formElement = event.currentTarget;
-    const form = new FormData(formElement);
     setSaving(true);
     setMessage(null);
 
@@ -170,10 +250,12 @@ export function RegisterWash() {
         body: JSON.stringify({
           vehicleTypeId: vehicleId,
           packageId,
-          plate: form.get("plate"),
+          plate,
           customPrice: needsCustomPrice ? Number(customPrice) : null,
-          notes: form.get("notes"),
-          customServiceDescription: form.get("customServiceDescription"),
+          notes,
+          customServiceDescription: selectedPackage?.requiresDescription
+            ? customServiceDescription
+            : null,
           participantIds: participants,
         }),
       });
@@ -211,8 +293,12 @@ export function RegisterWash() {
     setPackageId(null);
     setParticipants([]);
     setCustomPrice("");
+    setPlate("");
+    setNotes("");
+    setCustomServiceDescription("");
     setPhotos([]);
     setUploadProgress(null);
+    setCurrentStep(0);
     setMessage(
       uploadedPhotos === photos.length
         ? {
@@ -249,7 +335,27 @@ export function RegisterWash() {
       )}
 
       <form onSubmit={submit} className="wash-form">
-        <section className="form-section">
+        <div className="wizard-progress" aria-label="Progreso del registro">
+          {wizardSteps.map((step, index) => (
+            <button
+              type="button"
+              key={step}
+              className={[
+                "wizard-step",
+                index === currentStep ? "active" : "",
+                index < currentStep ? "completed" : "",
+              ].join(" ")}
+              disabled={!canOpenStep(index) || saving}
+              aria-current={index === currentStep ? "step" : undefined}
+              onClick={() => setCurrentStep(index)}
+            >
+              <span>{index + 1}</span>
+              <strong>{step}</strong>
+            </button>
+          ))}
+        </div>
+
+        <section className={`form-section wizard-panel ${currentStep === 0 ? "active" : ""}`}>
           <div className="section-heading">
             <span>1</span>
             <div>
@@ -275,7 +381,7 @@ export function RegisterWash() {
           </div>
         </section>
 
-        <section className="form-section">
+        <section className={`form-section wizard-panel ${currentStep === 1 ? "active" : ""}`}>
           <div className="section-heading">
             <span>2</span>
             <div>
@@ -291,10 +397,7 @@ export function RegisterWash() {
                 <OptionButton
                   key={vehicle.id}
                   selected={vehicleId === vehicle.id}
-                  onClick={() => {
-                    setVehicleId(vehicle.id);
-                    setPackageId(null);
-                  }}
+                  onClick={() => chooseVehicle(vehicle.id)}
                   title={vehicle.name}
                   icon={<Icon size={28} />}
                   subtitle={vehicle.requiresCustom ? "Precio libre" : undefined}
@@ -304,7 +407,7 @@ export function RegisterWash() {
           </div>
         </section>
 
-        <section className="form-section">
+        <section className={`form-section wizard-panel ${currentStep === 2 ? "active" : ""}`}>
           <div className="section-heading">
             <span>3</span>
             <div>
@@ -330,7 +433,7 @@ export function RegisterWash() {
                   key={item.id}
                   selected={packageId === item.id}
                   disabled={!vehicleId}
-                  onClick={() => setPackageId(item.id)}
+                  onClick={() => choosePackage(item, price)}
                   title={item.name}
                   icon={<Icon size={25} />}
                   subtitle={
@@ -344,7 +447,7 @@ export function RegisterWash() {
           </div>
         </section>
 
-        <section className="form-section details-section">
+        <section className={`form-section details-section wizard-panel ${currentStep === 3 ? "active" : ""}`}>
           <div className="section-heading">
             <span>4</span>
             <div>
@@ -440,7 +543,13 @@ export function RegisterWash() {
           <div className="field-grid">
             <label>
               Placa / referencia <em>Opcional</em>
-              <input name="plate" placeholder="ABC-123" maxLength={32} />
+              <input
+                name="plate"
+                placeholder="ABC-123"
+                maxLength={32}
+                value={plate}
+                onChange={(event) => setPlate(event.target.value)}
+              />
             </label>
 
             {needsCustomPrice && (
@@ -468,6 +577,8 @@ export function RegisterWash() {
                 <textarea
                   name="customServiceDescription"
                   placeholder="Describe el trabajo que se realizará…"
+                  value={customServiceDescription}
+                  onChange={(event) => setCustomServiceDescription(event.target.value)}
                   required
                 />
               </label>
@@ -478,6 +589,8 @@ export function RegisterWash() {
               <textarea
                 name="notes"
                 placeholder="Detalles del vehículo o indicaciones…"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
               />
             </label>
           </div>
@@ -485,17 +598,43 @@ export function RegisterWash() {
 
         <div className="register-bar">
           <div>
-            <span>TOTAL</span>
+            <span>PASO {currentStep + 1} / {wizardSteps.length}</span>
             <strong>{total > 0 ? formatMoney(total) : "—"}</strong>
+            <small>{wizardSteps[currentStep]}</small>
           </div>
-          <button className="primary-button" disabled={!canSave || saving}>
-            <ClipboardPlus size={21} />
-            {uploadProgress
-              ? `Subiendo ${uploadProgress}/${photos.length}…`
-              : saving
-                ? "Guardando…"
-                : "Registrar lavado"}
-          </button>
+          <div className="wizard-actions">
+            {currentStep > 0 && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={goBack}
+                disabled={saving}
+              >
+                <ChevronLeft size={19} />
+                Atrás
+              </button>
+            )}
+            {currentStep < lastWizardStep ? (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={goNext}
+                disabled={saving}
+              >
+                Siguiente
+                <ChevronRight size={19} />
+              </button>
+            ) : (
+              <button className="primary-button" disabled={!canSave || saving}>
+                <ClipboardPlus size={21} />
+                {uploadProgress
+                  ? `Subiendo ${uploadProgress}/${photos.length}…`
+                  : saving
+                    ? "Guardando…"
+                    : "Registrar lavado"}
+              </button>
+            )}
+          </div>
         </div>
       </form>
     </div>

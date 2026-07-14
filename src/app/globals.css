@@ -586,6 +586,71 @@ label em {
   padding: 28px 28px 150px;
 }
 
+.wizard-progress {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.wizard-step {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  color: #68717c;
+  background: #fff;
+  text-align: left;
+  font-size: 0.73rem;
+  font-weight: 800;
+}
+
+.wizard-step span {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #59616d;
+  background: #f0f2f4;
+  font-size: 0.72rem;
+}
+
+.wizard-step strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wizard-step.active {
+  border-color: var(--yellow-strong);
+  color: #181308;
+  background: var(--yellow-pale);
+}
+
+.wizard-step.active span,
+.wizard-step.completed span {
+  color: #181308;
+  background: var(--yellow);
+}
+
+.wizard-step:disabled {
+  opacity: 0.5;
+}
+
+.wizard-panel {
+  display: none;
+}
+
+.wizard-panel.active {
+  display: block;
+}
+
 .form-section {
   padding: 26px 0;
   border-bottom: 1px solid #e7e9ec;
@@ -935,6 +1000,13 @@ label em {
   display: grid;
 }
 
+.register-bar .wizard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .register-bar span {
   color: var(--muted);
   font-size: 0.68rem;
@@ -945,6 +1017,13 @@ label em {
 .register-bar strong {
   margin-top: 3px;
   font-size: 1.45rem;
+}
+
+.register-bar small {
+  margin-top: 1px;
+  color: #68717c;
+  font-size: 0.72rem;
+  font-weight: 750;
 }
 
 .period-tabs {
@@ -2332,6 +2411,14 @@ label em {
     padding: 22px 18px 170px;
   }
 
+  .wizard-progress {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .wizard-step {
+    min-height: 50px;
+  }
+
   .form-section {
     padding: 23px 0;
   }
@@ -2361,13 +2448,19 @@ label em {
 
   .register-bar {
     width: calc(100% - 24px);
+    gap: 10px;
     padding: 12px 12px 12px 17px;
     border-radius: 18px;
   }
 
-  .register-bar .primary-button {
+  .register-bar .wizard-actions {
+    gap: 8px;
+  }
+
+  .register-bar .primary-button,
+  .register-bar .secondary-button {
     min-height: 50px;
-    padding: 0 15px;
+    padding: 0 12px;
     font-size: 0.8rem;
   }
 

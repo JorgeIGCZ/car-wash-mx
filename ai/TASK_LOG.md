@@ -13,6 +13,13 @@
 
 ## Hecho
 
+- 2026-07-14: Se convirtió `/register` en un wizard ligero de 4 pasos
+  (servicio, vehículo, paquete, detalles) manteniendo el mismo endpoint de
+  registro y sin cambios de base de datos.
+  - Validacion: `npm run lint`, `npm run build` y verificacion manual en
+    `http://localhost:3000/register` navegando hasta el paso de detalles sin
+    enviar el formulario.
+
 - 2026-07-07: Auditoria general (lint, build, revision de codigo, smoke
   test en runtime). Resultado: app funcional; se detecto que
   `.env.production` se auto-carga en `npm run start` local (ver Pendiente).

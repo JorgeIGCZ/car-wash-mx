@@ -9,8 +9,13 @@
   reglas cambien despues. No recalcular comisiones historicas al editar
   reglas.
 - `UserRole` tiene tres niveles: `ADMIN` (control total), `ADMINISTRATIVE`
-  (solo consulta de historial/comisiones, sin editar precios ni
-  configuracion), `EMPLOYEE`/encargado (solo su propio historial).
+  (consulta historial/comisiones y puede capturar lavados a nombre de un
+  `ADMIN` o `EMPLOYEE`, sin editar precios ni configuracion),
+  `EMPLOYEE`/encargado (solo su propio historial).
+- La autorizacion de subida de fotos para lavados vive en
+  `src/app/api/washes/[id]/photos/route.ts`; si un rol puede crear lavados a
+  nombre de otro usuario, tambien hay que revisar esa ruta porque filtra por
+  `createdById` para roles sin acceso administrativo.
 
 ### Entornos y datos
 

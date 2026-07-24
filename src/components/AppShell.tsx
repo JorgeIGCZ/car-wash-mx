@@ -32,6 +32,7 @@ export function AppShell({ user, children }: AppShellProps) {
       ? [...baseLinks, { href: "/admin", label: "Administrar", icon: Settings }]
       : user.role === "ADMINISTRATIVE"
         ? [
+            { href: "/register", label: "Registrar", icon: ClipboardPlus },
             { href: "/personnel", label: "Perfil", icon: CircleUserRound },
             { href: "/admin", label: "Administrar", icon: Settings },
           ]

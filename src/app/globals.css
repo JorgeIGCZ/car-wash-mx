@@ -841,6 +841,10 @@ label em {
   background: #fff;
 }
 
+.owner-select {
+  margin-top: 14px;
+}
+
 .collaborators-title {
   display: flex;
   gap: 10px;

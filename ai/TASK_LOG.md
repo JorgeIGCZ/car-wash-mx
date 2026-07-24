@@ -13,6 +13,21 @@
 
 ## Hecho
 
+- 2026-07-24: Se habilito al personal administrativo para registrar lavados a
+  nombre de un administrador o encargado activo desde `/register`.
+  - El formulario muestra un selector de responsable solo para
+    `ADMINISTRATIVE`; el endpoint valida el responsable y calcula comisiones
+    sobre el responsable elegido y participantes validos.
+  - Validacion: `npm run lint` y `npm run build` pasaron; pendiente
+    verificacion manual autenticada con una cuenta administrativa.
+
+- 2026-07-07: Se agrego `PhotoLightbox` (visor a pantalla completa con
+  navegacion por flechas, swipe y teclado) y se conecto a las miniaturas
+  de fotos en `WashHistory`; las miniaturas dejaron de abrir pestañas
+  nuevas.
+  - Validacion: `npm run lint` y `npm run build` pasaron; pendiente
+    verificacion visual en navegador.
+
 - 2026-07-14: Se convirtió `/register` en un wizard ligero de 4 pasos
   (servicio, vehículo, paquete, detalles) manteniendo el mismo endpoint de
   registro y sin cambios de base de datos.

@@ -10,8 +10,10 @@ del catalogo, con foco en un flujo de registro rapido para los encargados.
 
 ## Alcance actual
 
-- Login con roles: administrador, administrativo (solo consulta), encargado.
+- Login con roles: administrador, administrativo, encargado.
 - Registro de lavado normal, interiores y servicio especial.
+- El personal administrativo puede registrar lavados a nombre de un
+  administrador o encargado activo.
 - Tipos de vehiculo y precios por combinacion de paquete y vehiculo,
   configurables.
 - Fotografias privadas por lavado (hasta 6), almacenadas en Cloudflare R2.
@@ -52,7 +54,7 @@ del catalogo, con foco en un flujo de registro rapido para los encargados.
 - `/register`: registro de lavados (flujo principal para encargados).
 - `/history`: historial de lavados propio o global segun rol.
 - `/personnel`: gestion de personal.
-- `/admin`: catalogo, precios, comisiones, usuarios (solo ADMIN;
+- `/admin`: catalogo, precios, comisiones, usuarios (solo ADMIN puede editar;
   ADMINISTRATIVE tiene acceso de solo consulta al historial/comisiones).
 - `/change-password`: cambio obligatorio de contrasena en primer acceso.
 

@@ -78,6 +78,7 @@ export function RegisterWash() {
   const [category, setCategory] = useState<keyof typeof categoryLabels>("NORMAL");
   const [vehicleId, setVehicleId] = useState<number | null>(null);
   const [packageId, setPackageId] = useState<number | null>(null);
+  const [createdById, setCreatedById] = useState<number | null>(null);
   const [participants, setParticipants] = useState<number[]>([]);
   const [customPrice, setCustomPrice] = useState("");
   const [plate, setPlate] = useState("");
@@ -120,6 +121,16 @@ export function RegisterWash() {
       ) ?? [],
     [category, data],
   );
+  const registrableUsers = useMemo(
+    () =>
+      data?.users.filter(
+        (user) =>
+          user.active && (user.role === "ADMIN" || user.role === "EMPLOYEE"),
+      ) ?? [],
+    [data],
+  );
+  const canChooseWashOwner = data?.user.role === "ADMINISTRATIVE";
+  const washOwnerId = canChooseWashOwner ? createdById : data?.user.id ?? null;
   const selectedVehicle = vehicles.find((item) => item.id === vehicleId);
   const selectedPackage = packages.find((item) => item.id === packageId);
   const needsCustomPrice =
@@ -131,12 +142,14 @@ export function RegisterWash() {
   const total = needsCustomPrice ? Number(customPrice) || 0 : configuredPrice ?? 0;
   const hasRequiredDescription =
     !selectedPackage?.requiresDescription || customServiceDescription.trim().length > 0;
+  const hasWashOwner = !canChooseWashOwner || Boolean(washOwnerId);
   const hasRequiredCustomPrice = !needsCustomPrice || Number(customPrice) > 0;
   const hasConfiguredPackagePrice =
     Boolean(packageId && selectedPackage) && (Boolean(needsCustomPrice) || Boolean(configuredPrice));
   const canSave = Boolean(
     vehicleId &&
       packageId &&
+      hasWashOwner &&
       total > 0 &&
       hasRequiredCustomPrice &&
       hasRequiredDescription,
@@ -179,6 +192,16 @@ export function RegisterWash() {
     setCurrentStep(3);
   }
 
+  function chooseWashOwner(id: number | null) {
+    setCreatedById(id);
+    setParticipants((current) =>
+      id === null
+        ? current
+        : current.filter((participantId) => participantId !== id),
+    );
+    setMessage(null);
+  }
+
   function wizardError() {
     if (currentStep === 1) return "Selecciona el tipo de vehículo.";
     if (currentStep === 2) {
@@ -187,6 +210,7 @@ export function RegisterWash() {
     }
     if (needsCustomPrice && !hasRequiredCustomPrice) return "Captura el precio acordado.";
     if (!hasRequiredDescription) return "Describe el servicio especial.";
+    if (!hasWashOwner) return "Selecciona a nombre de quién se registra.";
     return "Completa los datos requeridos.";
   }
 
@@ -237,6 +261,10 @@ export function RegisterWash() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!vehicleId || !packageId) return;
+    if (canChooseWashOwner && !washOwnerId) {
+      setMessage({ type: "error", text: "Selecciona a nombre de quién se registra." });
+      return;
+    }
 
     const formElement = event.currentTarget;
     setSaving(true);
@@ -250,6 +278,7 @@ export function RegisterWash() {
         body: JSON.stringify({
           vehicleTypeId: vehicleId,
           packageId,
+          createdById: canChooseWashOwner ? washOwnerId : undefined,
           plate,
           customPrice: needsCustomPrice ? Number(customPrice) : null,
           notes,
@@ -291,6 +320,7 @@ export function RegisterWash() {
     formElement.reset();
     setVehicleId(null);
     setPackageId(null);
+    setCreatedById(null);
     setParticipants([]);
     setCustomPrice("");
     setPlate("");
@@ -452,9 +482,43 @@ export function RegisterWash() {
             <span>4</span>
             <div>
               <h2>Detalles</h2>
-              <p>Adjunta fotografías y agrega quién participó.</p>
+              <p>
+                {canChooseWashOwner
+                  ? "Selecciona el responsable, adjunta fotografías y agrega quién participó."
+                  : "Adjunta fotografías y agrega quién participó."}
+              </p>
             </div>
           </div>
+
+          {canChooseWashOwner && (
+            <div className="collaborators">
+              <div className="collaborators-title">
+                <UserRoundPlus size={20} />
+                <div>
+                  <strong>Registrar a nombre de</strong>
+                  <small>Administrador o encargado</small>
+                </div>
+              </div>
+              <select
+                className="owner-select"
+                value={createdById ?? ""}
+                onChange={(event) =>
+                  chooseWashOwner(
+                    event.target.value ? Number(event.target.value) : null,
+                  )
+                }
+                disabled={saving}
+                required
+              >
+                <option value="">Selecciona un responsable</option>
+                {registrableUsers.map((user) => (
+                  <option value={user.id} key={user.id}>
+                    {user.name} · {user.role === "ADMIN" ? "Administrador" : "Encargado"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="photo-field">
             <div className="collaborators-title">
@@ -514,8 +578,9 @@ export function RegisterWash() {
               {data.users
                 .filter(
                   (user) =>
-                    user.id !== data.user.id &&
-                    user.role !== "ADMINISTRATIVE",
+                    user.id !== washOwnerId &&
+                    user.active &&
+                    (user.role === "ADMIN" || user.role === "EMPLOYEE"),
                 )
                 .map((user) => {
                   const selected = participants.includes(user.id);

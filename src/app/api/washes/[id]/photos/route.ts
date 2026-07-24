@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
-import { getCurrentUser } from "@/lib/auth";
+import { canAccessAdministration, getCurrentUser } from "@/lib/auth";
 import { deleteR2Object, uploadR2Object } from "@/lib/r2";
 import { prisma } from "@/lib/prisma";
 
@@ -28,7 +28,7 @@ export async function POST(
   const wash = await prisma.wash.findFirst({
     where: {
       id: washId,
-      ...(user.role === "ADMIN" ? {} : { createdById: user.id }),
+      ...(canAccessAdministration(user.role) ? {} : { createdById: user.id }),
     },
     select: {
       id: true,

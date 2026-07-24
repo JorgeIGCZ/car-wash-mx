@@ -13,6 +13,7 @@ import { getWorkWeekRange, getWorkWeekSettings } from "@/lib/work-week";
 const createWashSchema = z.object({
   vehicleTypeId: z.number().int().positive(),
   packageId: z.number().int().positive(),
+  createdById: z.number().int().positive().optional(),
   plate: z.string().trim().max(32).optional().nullable(),
   customPrice: z.number().positive().max(999999).optional().nullable(),
   notes: z.string().trim().max(2000).optional().nullable(),
@@ -216,16 +217,43 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Sesión no válida." }, { status: 401 });
   }
-  if (user.role === "ADMINISTRATIVE") {
-    return NextResponse.json(
-      { error: "El perfil administrativo no registra lavados." },
-      { status: 403 },
-    );
-  }
 
   const parsed = createWashSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "Revisa los datos del lavado." }, { status: 400 });
+  }
+
+  let creatorId = user.id;
+  if (user.role === "ADMINISTRATIVE") {
+    if (!parsed.data.createdById) {
+      return NextResponse.json(
+        { error: "Selecciona a nombre de quién se registra." },
+        { status: 400 },
+      );
+    }
+
+    const creator = await prisma.user.findFirst({
+      where: {
+        id: parsed.data.createdById,
+        active: true,
+        role: { in: ["ADMIN", "EMPLOYEE"] },
+      },
+      select: { id: true },
+    });
+
+    if (!creator) {
+      return NextResponse.json(
+        { error: "El responsable seleccionado no está disponible." },
+        { status: 400 },
+      );
+    }
+
+    creatorId = creator.id;
+  } else if (parsed.data.createdById && parsed.data.createdById !== user.id) {
+    return NextResponse.json(
+      { error: "No puedes registrar lavados a nombre de otro usuario." },
+      { status: 403 },
+    );
   }
 
   const [vehicleType, servicePackage] = await Promise.all([
@@ -276,14 +304,15 @@ export async function POST(request: Request) {
     where: {
       id: { in: [...new Set(parsed.data.participantIds)] },
       active: true,
+      role: { in: ["ADMIN", "EMPLOYEE"] },
     },
     select: { id: true },
   });
 
   const workerIds = [
-    user.id,
+    creatorId,
     ...validParticipants
-      .filter((participant) => participant.id !== user.id)
+      .filter((participant) => participant.id !== creatorId)
       .map((participant) => participant.id),
   ];
   const ruleScopeKeys = [
@@ -327,12 +356,12 @@ export async function POST(request: Request) {
       notes: parsed.data.notes || null,
       customServiceDescription: parsed.data.customServiceDescription || null,
       chargedPrice,
-      createdById: user.id,
+      createdById: creatorId,
       vehicleTypeId: vehicleType.id,
       packageId: servicePackage.id,
       participants: {
         create: validParticipants
-          .filter((participant) => participant.id !== user.id)
+          .filter((participant) => participant.id !== creatorId)
           .map((participant) => ({ userId: participant.id })),
       },
       commissions: {

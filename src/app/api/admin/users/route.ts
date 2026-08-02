@@ -12,6 +12,8 @@ const createSchema = z.object({
   email: z.string().email(),
   password: z.string().min(10).max(100),
   role: z.enum(["ADMIN", "ADMINISTRATIVE", "EMPLOYEE"]).default("EMPLOYEE"),
+  isPartner: z.boolean().default(false),
+  partnerSharePercentage: z.coerce.number().positive().max(100).optional().nullable(),
 });
 const updateSchema = z.object({
   id: z.number().int().positive(),
@@ -19,11 +21,33 @@ const updateSchema = z.object({
   role: z.enum(["ADMIN", "ADMINISTRATIVE", "EMPLOYEE"]).optional(),
   active: z.boolean().optional(),
   password: z.string().min(10).max(100).optional(),
+  isPartner: z.boolean().optional(),
+  partnerSharePercentage: z.coerce.number().positive().max(100).optional().nullable(),
 });
 
 async function currentAdmin() {
   const user = await getCurrentUser();
   return user?.role === "ADMIN" ? user : null;
+}
+
+function normalizePartnerData({
+  role,
+  isPartner,
+  partnerSharePercentage,
+}: {
+  role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
+  isPartner: boolean;
+  partnerSharePercentage?: number | null;
+}) {
+  if (role !== "ADMIN" || !isPartner) {
+    return { isPartner: false, partnerSharePercentage: null };
+  }
+
+  if (!partnerSharePercentage) {
+    return null;
+  }
+
+  return { isPartner: true, partnerSharePercentage };
 }
 
 export async function GET() {
@@ -37,13 +61,22 @@ export async function GET() {
       name: true,
       email: true,
       role: true,
+      isPartner: true,
+      partnerSharePercentage: true,
       active: true,
       mustChangePassword: true,
       _count: { select: { washesCreated: true, washParticipations: true } },
     },
     orderBy: { name: "asc" },
   });
-  return NextResponse.json(users);
+  return NextResponse.json(
+    users.map((item) => ({
+      ...item,
+      partnerSharePercentage: item.partnerSharePercentage
+        ? Number(item.partnerSharePercentage)
+        : null,
+    })),
+  );
 }
 
 export async function POST(request: Request) {
@@ -62,17 +95,42 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "El correo ya está registrado." }, { status: 409 });
   }
 
+  const partnerData = normalizePartnerData(parsed.data);
+  if (!partnerData) {
+    return NextResponse.json(
+      { error: "Captura el porcentaje del socio." },
+      { status: 400 },
+    );
+  }
+
   const user = await prisma.user.create({
     data: {
       name: parsed.data.name,
       email: parsed.data.email.toLowerCase(),
       role: parsed.data.role,
+      ...partnerData,
       passwordHash: await hash(parsed.data.password, 12),
       mustChangePassword: true,
     },
-    select: { id: true, name: true, email: true, role: true, active: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isPartner: true,
+      partnerSharePercentage: true,
+      active: true,
+    },
   });
-  return NextResponse.json(user, { status: 201 });
+  return NextResponse.json(
+    {
+      ...user,
+      partnerSharePercentage: user.partnerSharePercentage
+        ? Number(user.partnerSharePercentage)
+        : null,
+    },
+    { status: 201 },
+  );
 }
 
 export async function PATCH(request: Request) {
@@ -94,6 +152,41 @@ export async function PATCH(request: Request) {
     );
   }
 
+  const existing = await prisma.user.findUnique({
+    where: { id: parsed.data.id },
+    select: {
+      role: true,
+      isPartner: true,
+      partnerSharePercentage: true,
+    },
+  });
+  if (!existing) {
+    return NextResponse.json(
+      { error: "El usuario no existe." },
+      { status: 404 },
+    );
+  }
+
+  const nextRole = parsed.data.role ?? existing.role;
+  const nextIsPartner = parsed.data.isPartner ?? existing.isPartner;
+  const nextShare =
+    parsed.data.partnerSharePercentage === undefined
+      ? existing.partnerSharePercentage
+        ? Number(existing.partnerSharePercentage)
+        : null
+      : parsed.data.partnerSharePercentage;
+  const partnerData = normalizePartnerData({
+    role: nextRole,
+    isPartner: nextIsPartner,
+    partnerSharePercentage: nextShare,
+  });
+  if (!partnerData) {
+    return NextResponse.json(
+      { error: "Captura el porcentaje del socio." },
+      { status: 400 },
+    );
+  }
+
   const { id, password, ...data } = parsed.data;
   const passwordHash = password ? await hash(password, 12) : null;
   const user = await prisma.$transaction(async (transaction) => {
@@ -101,6 +194,7 @@ export async function PATCH(request: Request) {
       where: { id },
       data: {
         ...data,
+        ...partnerData,
         ...(passwordHash
           ? {
               passwordHash,
@@ -114,6 +208,8 @@ export async function PATCH(request: Request) {
         name: true,
         email: true,
         role: true,
+        isPartner: true,
+        partnerSharePercentage: true,
         active: true,
         mustChangePassword: true,
       },
@@ -123,5 +219,10 @@ export async function PATCH(request: Request) {
     }
     return updated;
   });
-  return NextResponse.json(user);
+  return NextResponse.json({
+    ...user,
+    partnerSharePercentage: user.partnerSharePercentage
+      ? Number(user.partnerSharePercentage)
+      : null,
+  });
 }

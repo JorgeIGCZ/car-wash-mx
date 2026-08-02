@@ -28,6 +28,7 @@ export async function POST(
   const wash = await prisma.wash.findFirst({
     where: {
       id: washId,
+      deletedAt: null,
       ...(canAccessAdministration(user.role) ? {} : { createdById: user.id }),
     },
     select: {

@@ -16,18 +16,25 @@ export default function LoginPage() {
     setError("");
 
     const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: form.get("email"),
-        password: form.get("password"),
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.get("email"),
+          password: form.get("password"),
+        }),
+      });
+    } catch {
+      setError("No fue posible conectar con el servidor.");
+      setLoading(false);
+      return;
+    }
 
-    const data = await response.json();
+    const data = await response.json().catch(() => null);
     if (!response.ok) {
-      setError(data.error ?? "No fue posible iniciar sesión.");
+      setError(data?.error ?? "No fue posible iniciar sesión.");
       setLoading(false);
       return;
     }

@@ -15,15 +15,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Datos de acceso inválidos." }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email.toLowerCase() },
-  });
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { email: parsed.data.email.toLowerCase() },
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "No fue posible conectar con la base de datos." },
+      { status: 503 },
+    );
+  }
 
   if (!user || !user.active || !(await compare(parsed.data.password, user.passwordHash))) {
     return NextResponse.json({ error: "Correo o contraseña incorrectos." }, { status: 401 });
   }
 
-  await createSession(user.id);
+  try {
+    await createSession(user.id);
+  } catch {
+    return NextResponse.json(
+      { error: "No fue posible crear la sesión." },
+      { status: 503 },
+    );
+  }
+
   return NextResponse.json({
     ok: true,
     mustChangePassword: user.mustChangePassword,

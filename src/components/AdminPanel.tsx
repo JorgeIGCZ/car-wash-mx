@@ -6,9 +6,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
+  AlertCircle,
+  CalendarDays,
   CalendarRange,
   Check,
   ChevronDown,
@@ -17,7 +20,9 @@ import {
   HandCoins,
   KeyRound,
   PackagePlus,
+  Pencil,
   Plus,
+  ReceiptText,
   Save,
   Settings,
   Trash2,
@@ -30,6 +35,7 @@ import { formatMoney } from "@/lib/format";
 import type {
   BootstrapData,
   CommissionRuleOption,
+  ExpenseRecord,
   ServicePackageOption,
   ServicePriceOption,
   VehicleTypeOption,
@@ -40,6 +46,8 @@ type AdminUser = {
   name: string;
   email: string;
   role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
+  isPartner: boolean;
+  partnerSharePercentage: number | null;
   active: boolean;
   mustChangePassword: boolean;
   _count: { washesCreated: number; washParticipations: number };
@@ -52,11 +60,14 @@ type WorkWeekSettings = {
 
 type Tab =
   | "HISTORY"
+  | "EXPENSES"
   | "PRICES"
   | "COMMISSIONS"
   | "CATALOG"
   | "USERS"
   | "SETTINGS";
+
+type Period = "TODAY" | "WEEK" | "MONTH" | "RANGE";
 
 const weekDays = [
   "Domingo",
@@ -68,6 +79,98 @@ const weekDays = [
   "Sábado",
 ];
 
+type FlashMessage = {
+  type: "success" | "error";
+  text: string;
+};
+
+function formatDateInput(value = new Date()) {
+  const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+async function responseError(response: Response, fallback: string) {
+  const payload = await response.json().catch(() => null);
+  return typeof payload?.error === "string" ? payload.error : fallback;
+}
+
+function ExpenseToggleButton({
+  type,
+  title,
+  description,
+  selected,
+  disabled,
+  compact = false,
+  onClick,
+}: {
+  type: "cash" | "reimbursement";
+  title: string;
+  description: string;
+  selected: boolean;
+  disabled?: boolean;
+  compact?: boolean;
+  onClick: () => void;
+}) {
+  const Icon = type === "cash" ? CircleDollarSign : HandCoins;
+
+  return (
+    <button
+      type="button"
+      className={`expense-toggle-card ${selected ? "selected" : ""} ${compact ? "compact" : ""}`}
+      aria-pressed={selected}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className="expense-toggle-icon">
+        <Icon size={compact ? 16 : 18} />
+      </span>
+      <span className="expense-toggle-copy">
+        <strong>{title}</strong>
+        <small>{description}</small>
+      </span>
+      <span className="expense-toggle-switch" aria-hidden="true">
+        <span />
+      </span>
+    </button>
+  );
+}
+
+function ExpenseSummaryCard({
+  icon: Icon,
+  label,
+  value,
+  tone = "neutral",
+}: {
+  icon: typeof ReceiptText;
+  label: string;
+  value: string;
+  tone?: "neutral" | "cash" | "reimbursement" | "total";
+}) {
+  return (
+    <div className={`expense-summary-card ${tone}`}>
+      <span>
+        <Icon size={18} />
+      </span>
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </div>
+    </div>
+  );
+}
+
+function formatExpenseDay(value: string) {
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatExpenseMonth(value: string) {
+  return new Intl.DateTimeFormat("es-MX", {
+    month: "short",
+  }).format(new Date(value)).replace(".", "");
+}
+
 export function AdminPanel() {
   const [tab, setTab] = useState<Tab>("HISTORY");
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
@@ -76,7 +179,7 @@ export function AdminPanel() {
     CommissionRuleOption[]
   >([]);
   const [settings, setSettings] = useState<WorkWeekSettings | null>(null);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<FlashMessage | null>(null);
 
   const load = useCallback(async () => {
     const [
@@ -102,9 +205,9 @@ export function AdminPanel() {
     void load();
   }, [load]);
 
-  function flash(text: string) {
-    setMessage(text);
-    window.setTimeout(() => setMessage(""), 2200);
+  function flash(text: string, type: FlashMessage["type"] = "success") {
+    setMessage({ text, type });
+    window.setTimeout(() => setMessage(null), 2200);
   }
 
   if (!bootstrap) return <div className="page-loading">Cargando administración…</div>;
@@ -116,6 +219,9 @@ export function AdminPanel() {
         <div className="admin-tabs">
           <button className={tab === "HISTORY" ? "selected" : ""} onClick={() => setTab("HISTORY")}>
             <ClipboardList size={18} /> Historial
+          </button>
+          <button className={tab === "EXPENSES" ? "selected" : ""} onClick={() => setTab("EXPENSES")}>
+            <ReceiptText size={18} /> Egresos
           </button>
           <button className={tab === "PRICES" ? "selected" : ""} onClick={() => setTab("PRICES")}>
             <CircleDollarSign size={18} /> Precios
@@ -139,10 +245,24 @@ export function AdminPanel() {
         </div>
       </PageHero>
 
-      {message && <div className="admin-toast"><Check size={17} />{message}</div>}
+      {message && (
+        <div className={`admin-toast ${message.type}`}>
+          {message.type === "success" ? <Check size={17} /> : <AlertCircle size={17} />}
+          {message.text}
+        </div>
+      )}
 
       {tab === "HISTORY" && (
-        <WashHistory embedded scope="ALL" users={users} />
+        <WashHistory
+          embedded
+          scope="ALL"
+          users={users}
+          canDelete={canEdit}
+          canEditCommissions={canEdit}
+        />
+      )}
+      {tab === "EXPENSES" && (
+        <ExpenseEditor users={users} currentUser={bootstrap.user} flash={flash} />
       )}
       {tab === "PRICES" && (
         <PriceEditor
@@ -256,6 +376,563 @@ function WorkWeekEditor({
         </button>
       </form>
     </section>
+  );
+}
+
+function ExpenseEditor({
+  users,
+  currentUser,
+  flash,
+}: {
+  users: AdminUser[];
+  currentUser: BootstrapData["user"];
+  flash: (text: string, type?: FlashMessage["type"]) => void;
+}) {
+  const [period, setPeriod] = useState<Period>("TODAY");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [takenFromCash, setTakenFromCash] = useState(false);
+  const [reimbursable, setReimbursable] = useState(false);
+  const canCreateExpense =
+    currentUser.role === "ADMIN" || currentUser.role === "ADMINISTRATIVE";
+  const canManageExpenses = currentUser.role === "ADMIN";
+  const lockedPartner =
+    currentUser.role === "ADMIN" && currentUser.isPartner
+      ? currentUser
+      : null;
+  const partners = useMemo(
+    () =>
+      users.filter(
+        (user) => user.active && user.role === "ADMIN" && user.isPartner,
+      ),
+    [users],
+  );
+  const cashTotal = useMemo(
+    () =>
+      expenses
+        .filter((expense) => expense.takenFromCash)
+        .reduce((sum, expense) => sum + expense.amount, 0),
+    [expenses],
+  );
+  const reimbursementTotal = useMemo(
+    () =>
+      expenses
+        .filter((expense) => expense.reimbursable && !expense.takenFromCash)
+        .reduce((sum, expense) => sum + expense.amount, 0),
+    [expenses],
+  );
+  const directExpenseTotal = Math.max(0, total - cashTotal);
+
+  const load = useCallback(async () => {
+    if (period === "RANGE" && (!from || !to)) return;
+    setLoading(true);
+    const params = new URLSearchParams({ period });
+    if (period === "RANGE") {
+      params.set("from", from);
+      params.set("to", to);
+    }
+    const response = await fetch(`/api/admin/expenses?${params}`, {
+      cache: "no-store",
+    });
+    if (response.ok) {
+      const data = await response.json();
+      setExpenses(data.expenses);
+      setTotal(data.stats.total);
+    }
+    setLoading(false);
+  }, [from, period, to]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const shouldReimburse = !takenFromCash && reimbursable;
+    const selectedPartnerId = lockedPartner
+      ? lockedPartner.id
+      : Number(form.get("partnerId"));
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expenseDate: form.get("expenseDate"),
+          concept: form.get("concept"),
+          amount: Number(form.get("amount")),
+          notes: form.get("notes"),
+          takenFromCash,
+          reimbursable: shouldReimburse,
+          partnerId:
+            shouldReimburse && selectedPartnerId > 0
+              ? selectedPartnerId
+              : null,
+        }),
+      });
+      if (!response.ok) {
+        flash(await responseError(response, "No fue posible registrar el egreso."), "error");
+        return;
+      }
+      formElement.reset();
+      setTakenFromCash(false);
+      setReimbursable(false);
+      flash("Egreso registrado");
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="admin-section expense-section">
+      <div className="expense-section-head">
+        <div className="content-heading">
+          <ReceiptText size={23} />
+          <div>
+            <h2>Egresos</h2>
+            <p>Gastos operativos, caja y reembolsos del periodo.</p>
+          </div>
+        </div>
+        <div className="expense-period-chip">
+          <CalendarDays size={17} />
+          {period === "TODAY" && "Hoy"}
+          {period === "WEEK" && "Semana"}
+          {period === "MONTH" && "Mes"}
+          {period === "RANGE" && "Rango"}
+        </div>
+      </div>
+
+      <div className="expense-summary-grid">
+        <ExpenseSummaryCard
+          icon={ReceiptText}
+          label="Total egresos"
+          value={formatMoney(total)}
+          tone="total"
+        />
+        <ExpenseSummaryCard
+          icon={CircleDollarSign}
+          label="Tomado de caja"
+          value={formatMoney(cashTotal)}
+          tone="cash"
+        />
+        <ExpenseSummaryCard
+          icon={HandCoins}
+          label="Reembolsos"
+          value={formatMoney(reimbursementTotal)}
+          tone="reimbursement"
+        />
+        <ExpenseSummaryCard
+          icon={ClipboardList}
+          label="Movimientos"
+          value={String(expenses.length)}
+        />
+      </div>
+
+      <div className="expense-workspace">
+        {canCreateExpense && (
+          <div className="expense-capture-panel">
+            <div className="expense-panel-heading">
+              <div>
+                <h3>Nuevo egreso</h3>
+                <p>Captura el gasto y define cómo se liquidó.</p>
+              </div>
+              <span>{formatMoney(directExpenseTotal)} fuera de caja</span>
+            </div>
+            <form className="expense-form" onSubmit={create}>
+              <label>
+                Fecha
+                <input
+                  type="date"
+                  name="expenseDate"
+                  defaultValue={formatDateInput()}
+                  required
+                />
+              </label>
+              <label className="wide">
+                Concepto
+                <input name="concept" placeholder="Consumibles, reparación..." required />
+              </label>
+              <label>
+                Monto
+                <input name="amount" type="number" min="0.01" step="0.01" required />
+              </label>
+              <label className="wide">
+                Notas
+                <input name="notes" placeholder="Opcional" />
+              </label>
+              <div className="expense-option-group">
+                <ExpenseToggleButton
+                  type="cash"
+                  title="Salió de caja"
+                  description="El negocio ya pagó este egreso."
+                  selected={takenFromCash}
+                  onClick={() => {
+                    const nextValue = !takenFromCash;
+                    setTakenFromCash(nextValue);
+                    if (nextValue) setReimbursable(false);
+                  }}
+                />
+                <ExpenseToggleButton
+                  type="reimbursement"
+                  title="Reembolsar a socio"
+                  description="Se sumará al total a entregar."
+                  selected={!takenFromCash && reimbursable}
+                  disabled={takenFromCash}
+                  onClick={() => setReimbursable((current) => !current)}
+                />
+              </div>
+              <label className="wide">
+                Socio
+                <select
+                  name="partnerId"
+                  value={
+                    lockedPartner && reimbursable && !takenFromCash
+                      ? String(lockedPartner.id)
+                      : undefined
+                  }
+                  disabled={Boolean(lockedPartner) || takenFromCash || !reimbursable}
+                  onChange={() => undefined}
+                >
+                  <option value="">
+                    {takenFromCash || !reimbursable
+                      ? "Sin reembolso"
+                      : "Seleccionar socio"}
+                  </option>
+                  {partners.map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </option>
+                  ))}
+                </select>
+                {lockedPartner && reimbursable && !takenFromCash && (
+                  <small>Se registrará para {lockedPartner.name}.</small>
+                )}
+              </label>
+              <button className="primary-button" disabled={saving}>
+                <Plus size={18} />
+                {saving ? "Guardando..." : "Registrar egreso"}
+              </button>
+            </form>
+          </div>
+        )}
+
+        <div className="expense-history-panel">
+          <div className="expense-panel-heading">
+            <div>
+              <h3>Movimientos</h3>
+              <p>{loading ? "Consultando..." : `${expenses.length} egresos en vista`}</p>
+            </div>
+            <div className="expense-total">
+              <span>Total</span>
+              <strong>{formatMoney(total)}</strong>
+            </div>
+          </div>
+
+          <div className="expense-toolbar">
+            <div className="period-tabs">
+              {([
+                ["TODAY", "Hoy"],
+                ["WEEK", "Semana"],
+                ["MONTH", "Mes"],
+                ["RANGE", "Rango"],
+              ] as [Period, string][]).map(([value, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={period === value ? "selected" : ""}
+                  onClick={() => setPeriod(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {period === "RANGE" && (
+              <div className="range-fields">
+                <label>
+                  Desde
+                  <input
+                    type="date"
+                    value={from}
+                    onChange={(event) => setFrom(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Hasta
+                  <input
+                    type="date"
+                    value={to}
+                    onChange={(event) => setTo(event.target.value)}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
+          <div className="expense-list">
+            {loading ? (
+              <div className="empty-state">Consultando egresos...</div>
+            ) : expenses.length === 0 ? (
+              <div className="empty-state">
+                <ReceiptText size={54} />
+                <h2>Sin egresos registrados</h2>
+                <p>No hay egresos en el periodo seleccionado.</p>
+              </div>
+            ) : (
+              expenses.map((expense) => (
+                <ExpenseRow
+                  key={expense.id}
+                  expense={expense}
+                  partners={partners}
+                  currentUser={currentUser}
+                  canEdit={canManageExpenses}
+                  flash={flash}
+                  onChanged={load}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ExpenseRow({
+  expense,
+  partners,
+  currentUser,
+  canEdit,
+  flash,
+  onChanged,
+}: {
+  expense: ExpenseRecord;
+  partners: AdminUser[];
+  currentUser: BootstrapData["user"];
+  canEdit: boolean;
+  flash: (text: string, type?: FlashMessage["type"]) => void;
+  onChanged: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [expenseDate, setExpenseDate] = useState(formatDateInput(new Date(expense.expenseDate)));
+  const [concept, setConcept] = useState(expense.concept);
+  const [amount, setAmount] = useState(String(expense.amount));
+  const [notes, setNotes] = useState(expense.notes ?? "");
+  const [takenFromCash, setTakenFromCash] = useState(expense.takenFromCash);
+  const [reimbursable, setReimbursable] = useState(expense.reimbursable);
+  const [partnerId, setPartnerId] = useState(expense.partner ? String(expense.partner.id) : "");
+  const lockedPartner =
+    currentUser.role === "ADMIN" && currentUser.isPartner
+      ? currentUser
+      : null;
+
+  useEffect(() => {
+    setExpenseDate(formatDateInput(new Date(expense.expenseDate)));
+    setConcept(expense.concept);
+    setAmount(String(expense.amount));
+    setNotes(expense.notes ?? "");
+    setTakenFromCash(expense.takenFromCash);
+    setReimbursable(expense.reimbursable);
+    setPartnerId(expense.partner ? String(expense.partner.id) : "");
+  }, [expense]);
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving) return;
+    const shouldReimburse = !takenFromCash && reimbursable;
+    const selectedPartnerId = lockedPartner
+      ? lockedPartner.id
+      : Number(partnerId);
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin/expenses", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: expense.id,
+          expenseDate,
+          concept,
+          amount: Number(amount),
+          notes,
+          takenFromCash,
+          reimbursable: shouldReimburse,
+          partnerId:
+            shouldReimburse && selectedPartnerId > 0
+              ? selectedPartnerId
+              : null,
+        }),
+      });
+      if (!response.ok) {
+        flash(await responseError(response, "No fue posible actualizar el egreso."), "error");
+        return;
+      }
+      setEditing(false);
+      flash("Egreso actualizado");
+      await onChanged();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove() {
+    if (saving || !window.confirm("¿Eliminar este egreso?")) return;
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin/expenses", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: expense.id }),
+      });
+      if (!response.ok) {
+        flash(await responseError(response, "No fue posible eliminar el egreso."), "error");
+        return;
+      }
+      flash("Egreso eliminado");
+      await onChanged();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <form className="expense-row editing" onSubmit={save}>
+        <input
+          type="date"
+          value={expenseDate}
+          onChange={(event) => setExpenseDate(event.target.value)}
+          required
+        />
+        <input
+          value={concept}
+          onChange={(event) => setConcept(event.target.value)}
+          required
+        />
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          value={amount}
+          onChange={(event) => setAmount(event.target.value)}
+          required
+        />
+        <input
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Notas"
+        />
+        <div className="expense-option-group compact">
+          <ExpenseToggleButton
+            type="cash"
+            title="Caja"
+            description="Pagado por el negocio"
+            selected={takenFromCash}
+            compact
+            onClick={() => {
+              const nextValue = !takenFromCash;
+              setTakenFromCash(nextValue);
+              if (nextValue) {
+                setReimbursable(false);
+                setPartnerId("");
+              }
+            }}
+          />
+          <ExpenseToggleButton
+            type="reimbursement"
+            title="Reembolso"
+            description="Sumar al socio"
+            selected={!takenFromCash && reimbursable}
+            disabled={takenFromCash}
+            compact
+            onClick={() => setReimbursable((current) => !current)}
+          />
+        </div>
+        <select
+          value={
+            lockedPartner && reimbursable && !takenFromCash
+              ? String(lockedPartner.id)
+              : partnerId
+          }
+          disabled={Boolean(lockedPartner) || takenFromCash || !reimbursable}
+          onChange={(event) => setPartnerId(event.target.value)}
+        >
+          <option value="">Socio</option>
+          {partners.map((partner) => (
+            <option key={partner.id} value={partner.id}>
+              {partner.name}
+            </option>
+          ))}
+        </select>
+        <div className="expense-actions">
+          <button className="icon-button" title="Guardar" disabled={saving}>
+            <Save size={17} />
+          </button>
+          <button
+            className="icon-button"
+            type="button"
+            title="Cancelar"
+            disabled={saving}
+            onClick={() => setEditing(false)}
+          >
+            <AlertCircle size={17} />
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <article className="expense-row">
+      <div className="expense-date-badge">
+        <span>{formatExpenseMonth(expense.expenseDate)}</span>
+        <strong>{formatExpenseDay(expense.expenseDate)}</strong>
+      </div>
+      <div className="expense-info">
+        <strong>{expense.concept}</strong>
+        <span>
+          Registrado por {expense.createdBy.name}
+          {expense.partner ? ` · ${expense.partner.name}` : ""}
+        </span>
+        {expense.notes && <small>{expense.notes}</small>}
+      </div>
+      <div className="expense-tags">
+        <span className={expense.takenFromCash ? "cash" : "direct"}>
+          {expense.takenFromCash ? "Caja" : "Fuera de caja"}
+        </span>
+        {expense.reimbursable && <span className="reimbursement">Reembolso</span>}
+      </div>
+      <strong className="expense-amount">{formatMoney(expense.amount)}</strong>
+      {canEdit && (
+        <div className="expense-actions">
+          <button
+            className="icon-button"
+            type="button"
+            title="Editar"
+            disabled={saving}
+            onClick={() => setEditing(true)}
+          >
+            <Pencil size={17} />
+          </button>
+          <button
+            className="icon-button danger"
+            type="button"
+            title="Eliminar"
+            disabled={saving}
+            onClick={() => void remove()}
+          >
+            <Trash2 size={17} />
+          </button>
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -903,8 +1580,15 @@ function CatalogEditor({
   packages: ServicePackageOption[];
   vehicles: VehicleTypeOption[];
   reload: () => Promise<void>;
-  flash: (text: string) => void;
+  flash: (text: string, type?: FlashMessage["type"]) => void;
 }) {
+  const [savingCreate, setSavingCreate] = useState<"package" | "vehicle" | null>(null);
+
+  async function responseError(response: Response, fallback: string) {
+    const payload = await response.json().catch(() => null);
+    return typeof payload?.error === "string" ? payload.error : fallback;
+  }
+
   async function patch(path: string, body: object, message: string) {
     const response = await fetch(path, {
       method: "PATCH",
@@ -914,45 +1598,65 @@ function CatalogEditor({
     if (response.ok) {
       flash(message);
       await reload();
+      return;
     }
+    flash(await responseError(response, "No fue posible guardar los cambios."), "error");
   }
 
   async function addPackage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/admin/packages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.get("name"),
-        category: form.get("category"),
-        description: form.get("description"),
-        requiresCustomPrice: form.get("customPrice") === "on",
-        requiresDescription: form.get("customDescription") === "on",
-      }),
-    });
-    if (response.ok) {
-      event.currentTarget.reset();
+    if (savingCreate) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    setSavingCreate("package");
+    try {
+      const response = await fetch("/api/admin/packages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.get("name"),
+          category: form.get("category"),
+          description: form.get("description"),
+          requiresCustomPrice: form.get("customPrice") === "on",
+          requiresDescription: form.get("customDescription") === "on",
+        }),
+      });
+      if (!response.ok) {
+        flash(await responseError(response, "No fue posible agregar el paquete."), "error");
+        return;
+      }
+      formElement.reset();
       flash("Paquete agregado");
       await reload();
+    } finally {
+      setSavingCreate(null);
     }
   }
 
   async function addVehicle(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/admin/vehicle-types", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.get("name"),
-        requiresCustom: form.get("requiresCustom") === "on",
-      }),
-    });
-    if (response.ok) {
-      event.currentTarget.reset();
+    if (savingCreate) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    setSavingCreate("vehicle");
+    try {
+      const response = await fetch("/api/admin/vehicle-types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.get("name"),
+          requiresCustom: form.get("requiresCustom") === "on",
+        }),
+      });
+      if (!response.ok) {
+        flash(await responseError(response, "No fue posible agregar el vehículo."), "error");
+        return;
+      }
+      formElement.reset();
       flash("Tipo de vehículo agregado");
       await reload();
+    } finally {
+      setSavingCreate(null);
     }
   }
 
@@ -991,7 +1695,10 @@ function CatalogEditor({
           </select>
           <label className="check-field"><input type="checkbox" name="customPrice" /> Precio libre</label>
           <label className="check-field"><input type="checkbox" name="customDescription" /> Solicitar información</label>
-          <button className="secondary-button"><PackagePlus size={18} />Agregar</button>
+          <button className="secondary-button" disabled={savingCreate !== null}>
+            <PackagePlus size={18} />
+            {savingCreate === "package" ? "Guardando..." : "Agregar"}
+          </button>
         </form>
       </section>
 
@@ -1020,7 +1727,10 @@ function CatalogEditor({
           <h3>Agregar tipo</h3>
           <input name="name" placeholder="Nombre del vehículo" required />
           <label className="check-field"><input type="checkbox" name="requiresCustom" /> Precio libre</label>
-          <button className="secondary-button"><PackagePlus size={18} />Agregar</button>
+          <button className="secondary-button" disabled={savingCreate !== null}>
+            <PackagePlus size={18} />
+            {savingCreate === "vehicle" ? "Guardando..." : "Agregar"}
+          </button>
         </form>
       </section>
     </div>
@@ -1039,11 +1749,12 @@ function CatalogRow({
   subtitle: string;
   category?: string;
   active: boolean;
-  onSave: (name: string, description: string) => void;
-  onToggle: () => void;
+  onSave: (name: string, description: string) => Promise<void>;
+  onToggle: () => Promise<void>;
 }) {
   const [name, setName] = useState(title);
   const [description, setDescription] = useState(subtitle === "Sin descripción" ? "" : subtitle);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setName(title);
@@ -1057,10 +1768,35 @@ function CatalogRow({
         {category && <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción" />}
         {category && <small>{category === "NORMAL" ? "Normal" : category === "INTERIOR" ? "Interiores" : "Especial"}</small>}
       </div>
-      <button className="icon-button" title="Guardar" onClick={() => onSave(name, description)}>
+      <button
+        className="icon-button"
+        title="Guardar"
+        disabled={saving}
+        onClick={async () => {
+          if (saving) return;
+          setSaving(true);
+          try {
+            await onSave(name, description);
+          } finally {
+            setSaving(false);
+          }
+        }}
+      >
         <Save size={18} />
       </button>
-      <button className={`status-toggle ${active ? "active" : ""}`} onClick={onToggle}>
+      <button
+        className={`status-toggle ${active ? "active" : ""}`}
+        disabled={saving}
+        onClick={async () => {
+          if (saving) return;
+          setSaving(true);
+          try {
+            await onToggle();
+          } finally {
+            setSaving(false);
+          }
+        }}
+      >
         {active ? "Activo" : "Inactivo"}
       </button>
     </div>
@@ -1076,8 +1812,13 @@ function UserEditor({
   users: AdminUser[];
   currentUserId: number;
   reload: () => Promise<void>;
-  flash: (text: string) => void;
+  flash: (text: string, type?: FlashMessage["type"]) => void;
 }) {
+  const [newRole, setNewRole] = useState<AdminUser["role"]>("EMPLOYEE");
+  const [newIsPartner, setNewIsPartner] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
+
   async function update(body: object) {
     const response = await fetch("/api/admin/users", {
       method: "PATCH",
@@ -1090,31 +1831,49 @@ function UserEditor({
       await reload();
       return true;
     }
-    flash(result.error ?? "No fue posible actualizar el usuario");
+    flash(result.error ?? "No fue posible actualizar el usuario", "error");
     return false;
   }
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/admin/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.get("name"),
-        email: form.get("email"),
-        password: form.get("password"),
-        role: form.get("role"),
-      }),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      flash(result.error ?? "No fue posible crear el usuario");
-      return;
+    if (creatingRef.current) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const isPartner = newRole === "ADMIN" && newIsPartner;
+    creatingRef.current = true;
+    setCreating(true);
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.get("name"),
+          email: form.get("email"),
+          password: form.get("password"),
+          role: form.get("role"),
+          isPartner,
+          partnerSharePercentage: isPartner
+            ? Number(form.get("partnerSharePercentage"))
+            : null,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        flash(result.error ?? "No fue posible crear el usuario", "error");
+        return;
+      }
+      formElement.reset();
+      setNewRole("EMPLOYEE");
+      setNewIsPartner(false);
+      flash("Usuario creado");
+      await reload();
+    } catch {
+      flash("No fue posible conectar con el servidor.", "error");
+    } finally {
+      creatingRef.current = false;
+      setCreating(false);
     }
-    event.currentTarget.reset();
-    flash("Usuario creado");
-    await reload();
   }
 
   return (
@@ -1132,6 +1891,11 @@ function UserEditor({
                 <strong>{user.name}</strong>
                 <span>{user.email}</span>
                 <small>{user._count.washesCreated} lavados registrados</small>
+                {user.isPartner && (
+                  <small className="partner-status">
+                    Socio {user.partnerSharePercentage ?? 0}%
+                  </small>
+                )}
                 {user.mustChangePassword && <small className="password-status">Cambio de contraseña pendiente</small>}
               </div>
               <select value={user.role} onChange={(e) => void update({ id: user.id, role: e.target.value })}>
@@ -1142,6 +1906,9 @@ function UserEditor({
               <button className={`status-toggle ${user.active ? "active" : ""}`} onClick={() => void update({ id: user.id, active: !user.active })}>
                 {user.active ? "Activo" : "Inactivo"}
               </button>
+              {user.role === "ADMIN" && (
+                <PartnerSettingsForm user={user} onSave={update} />
+              )}
               {user.id !== currentUserId && (
                 <ResetPasswordForm
                   onReset={(password) => update({ id: user.id, password })}
@@ -1164,16 +1931,115 @@ function UserEditor({
           <p className="password-hint">El usuario deberá reemplazarla cuando inicie sesión.</p>
           <label>
             Rol
-            <select name="role" defaultValue="EMPLOYEE">
+            <select
+              name="role"
+              value={newRole}
+              onChange={(event) => {
+                const role = event.target.value as AdminUser["role"];
+                setNewRole(role);
+                if (role !== "ADMIN") setNewIsPartner(false);
+              }}
+            >
               <option value="EMPLOYEE">Encargado</option>
               <option value="ADMINISTRATIVE">Administrativo</option>
               <option value="ADMIN">Administrador</option>
             </select>
           </label>
-          <button className="primary-button"><UserPlus size={18} />Crear usuario</button>
+          {newRole === "ADMIN" && (
+            <>
+              <label className="check-field">
+                <input
+                  type="checkbox"
+                  name="isPartner"
+                  checked={newIsPartner}
+                  onChange={(event) => setNewIsPartner(event.target.checked)}
+                />
+                Socio
+              </label>
+              <label>
+                Porcentaje en la sociedad
+                <input
+                  name="partnerSharePercentage"
+                  type="number"
+                  min="0.01"
+                  max="100"
+                  step="0.01"
+                  disabled={!newIsPartner}
+                  required={newIsPartner}
+                />
+              </label>
+            </>
+          )}
+          <button className="primary-button" disabled={creating}>
+            <UserPlus size={18} />
+            {creating ? "Creando..." : "Crear usuario"}
+          </button>
         </form>
       </section>
     </div>
+  );
+}
+
+function PartnerSettingsForm({
+  user,
+  onSave,
+}: {
+  user: AdminUser;
+  onSave: (body: object) => Promise<boolean>;
+}) {
+  const [isPartner, setIsPartner] = useState(user.isPartner);
+  const [percentage, setPercentage] = useState(
+    user.partnerSharePercentage ? String(user.partnerSharePercentage) : "",
+  );
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setIsPartner(user.isPartner);
+    setPercentage(
+      user.partnerSharePercentage ? String(user.partnerSharePercentage) : "",
+    );
+  }, [user]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    try {
+      await onSave({
+        id: user.id,
+        isPartner,
+        partnerSharePercentage: isPartner ? Number(percentage) : null,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="partner-settings-form" onSubmit={submit}>
+      <label className="check-field">
+        <input
+          type="checkbox"
+          checked={isPartner}
+          onChange={(event) => setIsPartner(event.target.checked)}
+        />
+        Socio
+      </label>
+      <input
+        type="number"
+        min="0.01"
+        max="100"
+        step="0.01"
+        value={percentage}
+        onChange={(event) => setPercentage(event.target.value)}
+        placeholder="%"
+        disabled={!isPartner}
+        required={isPartner}
+      />
+      <button className="secondary-button" disabled={saving}>
+        {saving ? "Guardando..." : "Guardar socio"}
+      </button>
+    </form>
   );
 }
 

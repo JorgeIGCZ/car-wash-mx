@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -25,6 +26,18 @@ async function isAdmin() {
   return (await getCurrentUser())?.role === "ADMIN";
 }
 
+async function vehicleNameExists(name: string, exceptId?: number) {
+  const normalizedName = slugify(name);
+  const vehicles = await prisma.vehicleType.findMany({
+    select: { id: true, name: true },
+  });
+
+  return vehicles.some((item) => {
+    if (item.id === exceptId) return false;
+    return slugify(item.name) === normalizedName;
+  });
+}
+
 export async function POST(request: Request) {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "Acceso restringido." }, { status: 403 });
@@ -35,15 +48,28 @@ export async function POST(request: Request) {
   }
   const count = await prisma.vehicleType.count();
   const baseSlug = slugify(parsed.data.name);
-  const existing = await prisma.vehicleType.findUnique({ where: { slug: baseSlug } });
-  const item = await prisma.vehicleType.create({
-    data: {
-      ...parsed.data,
-      slug: existing ? `${baseSlug}-${Date.now()}` : baseSlug,
-      sortOrder: count + 1,
-    },
-  });
-  return NextResponse.json(item, { status: 201 });
+  if (!baseSlug) {
+    return NextResponse.json({ error: "Usa letras o números en el nombre del vehículo." }, { status: 400 });
+  }
+  if (await vehicleNameExists(parsed.data.name)) {
+    return NextResponse.json({ error: "Ya existe un vehículo con ese nombre." }, { status: 409 });
+  }
+
+  try {
+    const item = await prisma.vehicleType.create({
+      data: {
+        ...parsed.data,
+        slug: baseSlug,
+        sortOrder: count + 1,
+      },
+    });
+    return NextResponse.json(item, { status: 201 });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "Ya existe un vehículo con ese nombre." }, { status: 409 });
+    }
+    throw error;
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -55,6 +81,16 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });
   }
   const { id, ...data } = parsed.data;
+  if (data.name) {
+    const baseSlug = slugify(data.name);
+    if (!baseSlug) {
+      return NextResponse.json({ error: "Usa letras o números en el nombre del vehículo." }, { status: 400 });
+    }
+    if (await vehicleNameExists(data.name, id)) {
+      return NextResponse.json({ error: "Ya existe un vehículo con ese nombre." }, { status: 409 });
+    }
+  }
+
   const item = await prisma.vehicleType.update({ where: { id }, data });
   return NextResponse.json(item);
 }

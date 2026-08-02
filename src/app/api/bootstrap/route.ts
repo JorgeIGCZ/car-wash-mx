@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   const { start, end } = localDayRange();
-  const visibility = { createdById: user.id };
+  const visibility = { createdById: user.id, deletedAt: null };
 
   const [vehicleTypes, packages, prices, users, todayCount, todayIncome] =
     await Promise.all([
@@ -21,7 +21,15 @@ export async function GET() {
       prisma.servicePrice.findMany(),
       prisma.user.findMany({
         where: { active: true },
-        select: { id: true, name: true, email: true, role: true, active: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isPartner: true,
+          partnerSharePercentage: true,
+          active: true,
+        },
         orderBy: { name: "asc" },
       }),
       prisma.wash.count({
@@ -39,9 +47,18 @@ export async function GET() {
       name: user.name,
       email: user.email,
       role: user.role,
+      isPartner: user.isPartner,
+      partnerSharePercentage: user.partnerSharePercentage
+        ? Number(user.partnerSharePercentage)
+        : null,
       active: user.active,
     },
-    users,
+    users: users.map((item) => ({
+      ...item,
+      partnerSharePercentage: item.partnerSharePercentage
+        ? Number(item.partnerSharePercentage)
+        : null,
+    })),
     vehicleTypes,
     packages,
     prices: prices.map((price) => ({ ...price, amount: Number(price.amount) })),

@@ -25,21 +25,26 @@ enum ServiceCategory {
 }
 
 model User {
-  id                 Int               @id @default(autoincrement())
-  name               String
-  email              String            @unique
-  passwordHash       String
-  mustChangePassword Boolean           @default(true)
-  passwordChangedAt  DateTime?
-  role               UserRole          @default(EMPLOYEE)
-  active             Boolean           @default(true)
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  sessions           Session[]
-  washesCreated      Wash[]            @relation("CreatedWashes")
-  washParticipations WashParticipant[]
-  commissionRules    CommissionRule[]
-  washCommissions    WashCommission[]
+  id                     Int               @id @default(autoincrement())
+  name                   String
+  email                  String            @unique
+  passwordHash           String
+  mustChangePassword     Boolean           @default(true)
+  passwordChangedAt      DateTime?
+  role                   UserRole          @default(EMPLOYEE)
+  isPartner              Boolean           @default(false)
+  partnerSharePercentage Decimal?          @db.Decimal(5, 2)
+  active                 Boolean           @default(true)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  sessions               Session[]
+  washesCreated          Wash[]            @relation("CreatedWashes")
+  washesDeleted          Wash[]            @relation("DeletedWashes")
+  washParticipations     WashParticipant[]
+  commissionRules        CommissionRule[]
+  washCommissions        WashCommission[]
+  expensesCreated        Expense[]         @relation("CreatedExpenses")
+  expenseReimbursements  Expense[]         @relation("ExpensePartner")
 }
 
 model Session {
@@ -98,6 +103,8 @@ model Wash {
   chargedPrice             Decimal           @db.Decimal(10, 2)
   notes                    String?           @db.Text
   customServiceDescription String?           @db.Text
+  deletedAt                DateTime?
+  deletedById              Int?
   createdAt                DateTime          @default(now())
   updatedAt                DateTime          @updatedAt
   createdById              Int
@@ -106,12 +113,15 @@ model Wash {
   createdBy                User              @relation("CreatedWashes", fields: [createdById], references: [id])
   vehicleType              VehicleType       @relation(fields: [vehicleTypeId], references: [id])
   package                  ServicePackage    @relation(fields: [packageId], references: [id])
+  deletedBy                User?             @relation("DeletedWashes", fields: [deletedById], references: [id], onDelete: Restrict)
   participants             WashParticipant[]
   commissions              WashCommission[]
   photos                   WashPhoto[]
 
   @@index([createdById, createdAt])
   @@index([createdAt])
+  @@index([deletedAt])
+  @@index([deletedById])
 }
 
 model WashPhoto {
@@ -165,6 +175,26 @@ model WashCommission {
 
   @@id([washId, userId])
   @@index([userId])
+}
+
+model Expense {
+  id            Int      @id @default(autoincrement())
+  expenseDate   DateTime
+  concept       String   @db.VarChar(160)
+  amount        Decimal  @db.Decimal(10, 2)
+  notes         String?  @db.Text
+  takenFromCash Boolean  @default(false)
+  reimbursable  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  partnerId     Int?
+  createdById   Int
+  partner       User?    @relation("ExpensePartner", fields: [partnerId], references: [id], onDelete: Restrict)
+  createdBy     User     @relation("CreatedExpenses", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([expenseDate])
+  @@index([partnerId, expenseDate])
+  @@index([createdById])
 }
 
 model AppSetting {

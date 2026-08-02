@@ -21,6 +21,8 @@ del catalogo, con foco en un flujo de registro rapido para los encargados.
   filtrable por usuario en Administracion.
 - Comisiones por usuario, paquete y vehiculo (porcentaje o monto fijo), con
   calculo de ganancia neta e historico conservado aunque cambien las reglas.
+- Egresos operativos administrables, con impacto en ganancia neta y detalle
+  de reparto/reembolsos para socios.
 - Catalogo, precios y usuarios administrables desde el panel de Admin.
 
 ## Stack

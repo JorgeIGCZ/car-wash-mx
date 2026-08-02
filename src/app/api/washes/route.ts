@@ -21,6 +21,8 @@ const createWashSchema = z.object({
   participantIds: z.array(z.number().int().positive()).max(20).default([]),
 });
 
+const activeWashFilter: Prisma.WashWhereInput = { deletedAt: null };
+
 async function getPeriodRange(period: string, from: string | null, to: string | null) {
   const now = new Date();
   const today = localDayRange(now);
@@ -85,10 +87,21 @@ export async function GET(request: NextRequest) {
   const where: Prisma.WashWhereInput = {
     ...visibility,
     ...userFilter,
+    ...activeWashFilter,
     createdAt: { gte: range.start, lt: range.end },
   };
 
-  const [washes, total, commissionTotal, selectedCommissionTotal] =
+  const showProfitDetail = globalScope && !hasRequestedUser;
+  const [
+    washes,
+    total,
+    commissionTotal,
+    selectedCommissionTotal,
+    expenseTotal,
+    cashExpenseTotal,
+    reimbursements,
+    partners,
+  ] =
     await Promise.all([
     prisma.wash.findMany({
       where,
@@ -136,6 +149,48 @@ export async function GET(request: NextRequest) {
         },
         _sum: { amount: true },
       }),
+      showProfitDetail
+        ? prisma.expense.aggregate({
+            where: { expenseDate: { gte: range.start, lt: range.end } },
+            _sum: { amount: true },
+          })
+        : Promise.resolve(null),
+      showProfitDetail
+        ? prisma.expense.aggregate({
+            where: {
+              expenseDate: { gte: range.start, lt: range.end },
+              takenFromCash: true,
+            },
+            _sum: { amount: true },
+          })
+        : Promise.resolve(null),
+      showProfitDetail
+        ? prisma.expense.groupBy({
+            by: ["partnerId"],
+            where: {
+              expenseDate: { gte: range.start, lt: range.end },
+              takenFromCash: false,
+              reimbursable: true,
+              partnerId: { not: null },
+            },
+            _sum: { amount: true },
+          })
+        : Promise.resolve([]),
+      showProfitDetail
+        ? prisma.user.findMany({
+            where: {
+              active: true,
+              role: "ADMIN",
+              isPartner: true,
+            },
+            select: {
+              id: true,
+              name: true,
+              partnerSharePercentage: true,
+            },
+            orderBy: { name: "asc" },
+          })
+        : Promise.resolve([]),
     ]);
 
   const serializedWashes = await Promise.all(
@@ -191,6 +246,59 @@ export async function GET(request: NextRequest) {
   const selectedCommission = Number(
     selectedCommissionTotal._sum.amount ?? 0,
   );
+  const expenses = Number(expenseTotal?._sum.amount ?? 0);
+  const cashExpenses = Number(cashExpenseTotal?._sum.amount ?? 0);
+  const netIncome = income - commissions - expenses;
+  const reimbursementByPartner = new Map(
+    reimbursements
+      .filter((item) => item.partnerId !== null)
+      .map((item) => [item.partnerId!, Number(item._sum.amount ?? 0)]),
+  );
+  const reimbursableExpenses = [...reimbursementByPartner.values()].reduce(
+    (sum, amount) => sum + amount,
+    0,
+  );
+  const externalExpenses = Math.max(0, expenses - cashExpenses);
+  const externalNonReimbursableExpenses =
+    Math.max(0, externalExpenses - reimbursableExpenses);
+  const cashBeforePartnerPayout = income - commissions - cashExpenses;
+  const totalPartnerPayout = netIncome + reimbursableExpenses;
+  const partnerShareTotal = partners.reduce(
+    (sum, partner) => sum + Number(partner.partnerSharePercentage ?? 0),
+    0,
+  );
+  const hasValidPartnerShares =
+    partners.length > 0 && Math.abs(partnerShareTotal - 100) < 0.01;
+  const profitDetail = showProfitDetail
+    ? {
+        income,
+        commissions,
+        expenses,
+        cashExpenses,
+        externalExpenses,
+        reimbursableExpenses,
+        netIncome,
+        cashBeforePartnerPayout,
+        totalPartnerPayout,
+        externalNonReimbursableExpenses,
+        partnerShareTotal,
+        hasValidPartnerShares,
+        partners: partners.map((partner) => {
+          const sharePercentage = Number(partner.partnerSharePercentage ?? 0);
+          const profitShare =
+            Math.round(netIncome * sharePercentage) / 100;
+          const reimbursement = reimbursementByPartner.get(partner.id) ?? 0;
+          return {
+            id: partner.id,
+            name: partner.name,
+            sharePercentage,
+            profitShare,
+            reimbursement,
+            totalPayout: profitShare + reimbursement,
+          };
+        }),
+      }
+    : undefined;
   return NextResponse.json({
     washes: serializedWashes,
     stats: globalScope
@@ -199,7 +307,9 @@ export async function GET(request: NextRequest) {
           income,
           commissions,
           selectedCommission,
-          netIncome: income - commissions,
+          expenses: showProfitDetail ? expenses : 0,
+          netIncome: showProfitDetail ? netIncome : income - commissions,
+          ...(profitDetail ? { profitDetail } : {}),
         }
       : {
           count: washes.length,

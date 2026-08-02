@@ -3,6 +3,8 @@ export type AppUser = {
   name: string;
   email: string;
   role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
+  isPartner?: boolean;
+  partnerSharePercentage?: number | null;
   active: boolean;
   mustChangePassword?: boolean;
 };
@@ -58,6 +60,42 @@ export type BootstrapData = {
   };
 };
 
+export type ExpenseRecord = {
+  id: number;
+  expenseDate: string;
+  concept: string;
+  amount: number;
+  notes: string | null;
+  takenFromCash: boolean;
+  reimbursable: boolean;
+  partner: { id: number; name: string } | null;
+  createdBy: { id: number; name: string };
+  createdAt: string;
+};
+
+export type ProfitDetail = {
+  income: number;
+  commissions: number;
+  expenses: number;
+  cashExpenses: number;
+  externalExpenses: number;
+  reimbursableExpenses: number;
+  netIncome: number;
+  cashBeforePartnerPayout: number;
+  totalPartnerPayout: number;
+  externalNonReimbursableExpenses: number;
+  partnerShareTotal: number;
+  hasValidPartnerShares: boolean;
+  partners: {
+    id: number;
+    name: string;
+    sharePercentage: number;
+    profitShare: number;
+    reimbursement: number;
+    totalPayout: number;
+  }[];
+};
+
 export type WashRecord = {
   id: number;
   plate: string | null;
@@ -67,6 +105,8 @@ export type WashRecord = {
   personalCommission: number;
   notes: string | null;
   customServiceDescription: string | null;
+  deletedAt?: string | null;
+  deletedBy?: { id: number; name: string } | null;
   createdAt: string;
   vehicleType: { name: string };
   package: { name: string; category: "NORMAL" | "INTERIOR" | "SPECIAL" };

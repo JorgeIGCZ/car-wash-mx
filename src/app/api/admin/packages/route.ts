@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -30,6 +31,18 @@ async function admin() {
   return user?.role === "ADMIN";
 }
 
+async function packageNameExists(name: string, exceptId?: number) {
+  const normalizedName = slugify(name);
+  const packages = await prisma.servicePackage.findMany({
+    select: { id: true, name: true },
+  });
+
+  return packages.some((item) => {
+    if (item.id === exceptId) return false;
+    return slugify(item.name) === normalizedName;
+  });
+}
+
 export async function POST(request: Request) {
   if (!(await admin())) {
     return NextResponse.json({ error: "Acceso restringido." }, { status: 403 });
@@ -43,16 +56,29 @@ export async function POST(request: Request) {
     where: { category: parsed.data.category },
   });
   const baseSlug = slugify(parsed.data.name);
-  const existing = await prisma.servicePackage.findUnique({ where: { slug: baseSlug } });
-  const item = await prisma.servicePackage.create({
-    data: {
-      ...parsed.data,
-      description: parsed.data.description || null,
-      slug: existing ? `${baseSlug}-${Date.now()}` : baseSlug,
-      sortOrder: categoryCount + 1,
-    },
-  });
-  return NextResponse.json(item, { status: 201 });
+  if (!baseSlug) {
+    return NextResponse.json({ error: "Usa letras o números en el nombre del paquete." }, { status: 400 });
+  }
+  if (await packageNameExists(parsed.data.name)) {
+    return NextResponse.json({ error: "Ya existe un paquete con ese nombre." }, { status: 409 });
+  }
+
+  try {
+    const item = await prisma.servicePackage.create({
+      data: {
+        ...parsed.data,
+        description: parsed.data.description || null,
+        slug: baseSlug,
+        sortOrder: categoryCount + 1,
+      },
+    });
+    return NextResponse.json(item, { status: 201 });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "Ya existe un paquete con ese nombre." }, { status: 409 });
+    }
+    throw error;
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -65,6 +91,16 @@ export async function PATCH(request: Request) {
   }
 
   const { id, ...data } = parsed.data;
+  if (data.name) {
+    const baseSlug = slugify(data.name);
+    if (!baseSlug) {
+      return NextResponse.json({ error: "Usa letras o números en el nombre del paquete." }, { status: 400 });
+    }
+    if (await packageNameExists(data.name, id)) {
+      return NextResponse.json({ error: "Ya existe un paquete con ese nombre." }, { status: 409 });
+    }
+  }
+
   const item = await prisma.servicePackage.update({
     where: { id },
     data: {

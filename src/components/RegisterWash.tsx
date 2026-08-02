@@ -5,6 +5,7 @@ import {
   FormEvent,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -16,8 +17,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardPlus,
+  Copy,
   Droplets,
+  ImageIcon,
   Layers3,
+  MessageCircle,
   ShieldCheck,
   Sparkles,
   Truck,
@@ -64,12 +68,78 @@ const categoryOptions = {
 const wizardSteps = ["Servicio", "Vehículo", "Paquete", "Detalles"] as const;
 const lastWizardStep = wizardSteps.length - 1;
 
+type WhatsAppSharePayload = {
+  washId: number;
+  text: string;
+  photos: File[];
+  photoCount: number;
+  uploadedPhotos: number;
+};
+
 function packageIcon(item: ServicePackageOption) {
   if (item.category === "SPECIAL") return ClipboardPlus;
   if (item.slug.includes("asientos")) return Armchair;
   if (item.slug.includes("cielo")) return Wind;
   if (item.slug.includes("alfombra")) return Layers3;
   return item.slug.includes("exterior") ? Sparkles : ShieldCheck;
+}
+
+function buildWashShareText({
+  washId,
+  vehicleName,
+  packageName,
+  categoryLabel,
+  chargedPrice,
+  creatorName,
+  participantNames,
+  plate,
+  customServiceDescription,
+  notes,
+  photoCount,
+  uploadedPhotos,
+}: {
+  washId: number;
+  vehicleName: string;
+  packageName: string;
+  categoryLabel: string;
+  chargedPrice: number;
+  creatorName: string;
+  participantNames: string[];
+  plate: string;
+  customServiceDescription: string;
+  notes: string;
+  photoCount: number;
+  uploadedPhotos: number;
+}) {
+  const lines = [
+    `Turbo Wash - Servicio #${washId}`,
+    `Fecha: ${new Date().toLocaleString("es-MX", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    })}`,
+    `Servicio: ${categoryLabel} - ${packageName}`,
+    `Vehículo: ${vehicleName}`,
+    `Precio: ${formatMoney(chargedPrice)}`,
+    `Responsable: ${creatorName}`,
+  ];
+
+  if (plate.trim()) lines.push(`Placa/referencia: ${plate.trim()}`);
+  if (participantNames.length > 0) {
+    lines.push(`Participantes: ${participantNames.join(", ")}`);
+  }
+  if (customServiceDescription.trim()) {
+    lines.push(`Descripción: ${customServiceDescription.trim()}`);
+  }
+  if (notes.trim()) lines.push(`Observaciones: ${notes.trim()}`);
+  if (photoCount > 0) {
+    lines.push(
+      uploadedPhotos === photoCount
+        ? `Fotos: ${uploadedPhotos} guardadas en sistema.`
+        : `Fotos: ${photoCount} seleccionadas, ${uploadedPhotos} guardadas en sistema.`,
+    );
+  }
+
+  return lines.join("\n");
 }
 
 export function RegisterWash() {
@@ -86,8 +156,11 @@ export function RegisterWash() {
   const [customServiceDescription, setCustomServiceDescription] = useState("");
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [sharePayload, setSharePayload] = useState<WhatsAppSharePayload | null>(null);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
 
   async function load() {
     const response = await fetch("/api/bootstrap", { cache: "no-store" });
@@ -235,6 +308,57 @@ export function RegisterWash() {
     return hasConfiguredPackagePrice;
   }
 
+  async function copyShareText() {
+    if (!sharePayload) return;
+
+    try {
+      await navigator.clipboard.writeText(sharePayload.text);
+      setShareNotice("Mensaje copiado.");
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = sharePayload.text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setShareNotice(copied ? "Mensaje copiado." : "No fue posible copiar el mensaje.");
+    }
+  }
+
+  async function sharePhotos() {
+    if (!sharePayload?.photos.length) return;
+    setShareNotice(null);
+
+    if (!navigator.share || !navigator.canShare) {
+      setShareNotice("Este dispositivo no permite compartir fotos desde la web.");
+      return;
+    }
+
+    if (!navigator.canShare({ files: sharePayload.photos })) {
+      setShareNotice("Este dispositivo no acepta estas fotos para compartir.");
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: `Servicio #${sharePayload.washId}`,
+        text: sharePayload.text,
+        files: sharePayload.photos,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+
+      try {
+        await navigator.share({ files: sharePayload.photos });
+      } catch {
+        setShareNotice("No fue posible abrir el menú para compartir fotos.");
+      }
+    }
+  }
+
   function selectPhotos(event: ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(event.target.files ?? []);
     event.target.value = "";
@@ -260,6 +384,9 @@ export function RegisterWash() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingRef.current) return;
+    const currentData = data;
+    if (!currentData) return;
     if (!vehicleId || !packageId) return;
     if (canChooseWashOwner && !washOwnerId) {
       setMessage({ type: "error", text: "Selecciona a nombre de quién se registra." });
@@ -267,6 +394,7 @@ export function RegisterWash() {
     }
 
     const formElement = event.currentTarget;
+    savingRef.current = true;
     setSaving(true);
     setMessage(null);
 
@@ -290,6 +418,7 @@ export function RegisterWash() {
       });
     } catch {
       setMessage({ type: "error", text: "No fue posible conectar con el servidor." });
+      savingRef.current = false;
       setSaving(false);
       return;
     }
@@ -297,11 +426,13 @@ export function RegisterWash() {
 
     if (!response.ok) {
       setMessage({ type: "error", text: result.error ?? "No fue posible registrar el lavado." });
+      savingRef.current = false;
       setSaving(false);
       return;
     }
 
     let uploadedPhotos = 0;
+    const selectedPhotos = [...photos];
     for (let index = 0; index < photos.length; index += 1) {
       setUploadProgress(index + 1);
       const photoForm = new FormData();
@@ -316,6 +447,36 @@ export function RegisterWash() {
         // El lavado permanece registrado aunque una fotografía falle.
       }
     }
+
+    const creatorName =
+      currentData.users.find((user) => user.id === washOwnerId)?.name ??
+      currentData.user.name;
+    const participantNames = participants
+      .map((participantId) =>
+        currentData.users.find((user) => user.id === participantId)?.name,
+      )
+      .filter((name): name is string => Boolean(name));
+    setSharePayload({
+      washId: result.id,
+      text: buildWashShareText({
+        washId: result.id,
+        vehicleName: selectedVehicle?.name ?? "No especificado",
+        packageName: selectedPackage?.name ?? "No especificado",
+        categoryLabel: categoryLabels[category],
+        chargedPrice: Number(result.chargedPrice ?? total),
+        creatorName,
+        participantNames,
+        plate,
+        customServiceDescription,
+        notes,
+        photoCount: photos.length,
+        uploadedPhotos,
+      }),
+      photos: selectedPhotos,
+      photoCount: photos.length,
+      uploadedPhotos,
+    });
+    setShareNotice(null);
 
     formElement.reset();
     setVehicleId(null);
@@ -344,6 +505,7 @@ export function RegisterWash() {
             } fotografías no pudieron guardarse.`,
           },
     );
+    savingRef.current = false;
     setSaving(false);
     await load();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -702,6 +864,79 @@ export function RegisterWash() {
           </div>
         </div>
       </form>
+
+      {sharePayload && (
+        <div className="whatsapp-dialog-backdrop">
+          <section
+            className="whatsapp-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="whatsapp-dialog-title"
+          >
+            <div className="whatsapp-dialog-heading">
+              <div>
+                <span>Servicio guardado</span>
+                <h2 id="whatsapp-dialog-title">Enviar por WhatsApp</h2>
+                <p>WhatsApp abrirá tus chats para elegir contacto o grupo.</p>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Cerrar"
+                onClick={() => setSharePayload(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="whatsapp-destination">
+              <MessageCircle size={20} />
+              <div>
+                <strong>Elegir grupo en WhatsApp</strong>
+                <small>El navegador no puede leer tus grupos sin una integración.</small>
+              </div>
+            </div>
+
+            <pre className="whatsapp-message-preview">{sharePayload.text}</pre>
+
+            {sharePayload.photoCount > 0 && (
+              <div className="whatsapp-photo-status">
+                <ImageIcon size={18} />
+                <span>
+                  {sharePayload.uploadedPhotos === sharePayload.photoCount
+                    ? `${sharePayload.uploadedPhotos} fotos guardadas.`
+                    : `${sharePayload.uploadedPhotos}/${sharePayload.photoCount} fotos guardadas.`}
+                </span>
+              </div>
+            )}
+
+            {shareNotice && <p className="whatsapp-share-notice">{shareNotice}</p>}
+
+            <div className="whatsapp-dialog-actions">
+              <a
+                className="primary-button"
+                href={`https://wa.me/?text=${encodeURIComponent(sharePayload.text)}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setShareNotice(null)}
+              >
+                <MessageCircle size={19} />
+                Elegir grupo
+              </a>
+              {sharePayload.photos.length > 0 && (
+                <button type="button" className="secondary-button" onClick={sharePhotos}>
+                  <ImageIcon size={18} />
+                  Compartir fotos
+                </button>
+              )}
+              <button type="button" className="secondary-button" onClick={copyShareText}>
+                <Copy size={18} />
+                Copiar
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

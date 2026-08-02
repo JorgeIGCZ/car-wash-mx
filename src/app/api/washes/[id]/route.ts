@@ -19,6 +19,8 @@ const updateCommissionSchema = z
     }
   });
 
+const assignSchema = z.object({ assignToId: z.number().int().positive() });
+
 function calculateCommissionAmount(
   chargedPrice: number,
   type: "PERCENTAGE" | "FIXED",
@@ -47,14 +49,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Lavado no válido." }, { status: 400 });
   }
 
-  const parsed = updateCommissionSchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Comisión inválida." },
-      { status: 400 },
-    );
-  }
-
+  // Load the wash first (used both for assign and commission paths)
   const wash = await prisma.wash.findFirst({
     where: { id: washId, deletedAt: null },
     select: {
@@ -69,16 +64,48 @@ export async function PATCH(
     return NextResponse.json({ error: "Lavado no encontrado." }, { status: 404 });
   }
 
-  const workerIds = new Set([
-    wash.createdById,
-    ...wash.participants.map((participant) => participant.userId),
-  ]);
-  if (!workerIds.has(parsed.data.userId)) {
+  const body = await request.json().catch(() => ({}));
+
+  // Assigning a different user to the service
+  if (body && Object.prototype.hasOwnProperty.call(body, "assignToId")) {
+    const parsedAssign = assignSchema.safeParse(body);
+    if (!parsedAssign.success) {
+      return NextResponse.json({ error: "Usuario asignado inválido." }, { status: 400 });
+    }
+
+    const targetUser = await prisma.user.findFirst({
+      where: { id: parsedAssign.data.assignToId, active: true },
+      select: { id: true, name: true },
+    });
+    if (!targetUser) {
+      return NextResponse.json({ error: "Usuario destino no válido." }, { status: 400 });
+    }
+
+    const updated = await prisma.wash.update({
+      where: { id: wash.id },
+      data: { createdById: targetUser.id },
+      select: {
+        id: true,
+        createdById: true,
+        createdBy: { select: { id: true, name: true } },
+      },
+    });
+
+    return NextResponse.json({ ok: true, wash: updated });
+  }
+
+  // Otherwise treat as commission update
+  const parsed = updateCommissionSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Solo puedes ajustar comisiones de trabajadores del servicio." },
+      { error: parsed.error.issues[0]?.message ?? "Comisión inválida." },
       { status: 400 },
     );
   }
+
+  // Admins are allowed to set commissions; no longer restrict only to
+  // participants/creator. This allows assigning commission to the new
+  // responsible user even if they weren't previously listed as a worker.
 
   const amount = calculateCommissionAmount(
     Number(wash.chargedPrice),

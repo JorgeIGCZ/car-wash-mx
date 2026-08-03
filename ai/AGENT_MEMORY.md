@@ -83,6 +83,9 @@
   `ADMINISTRATIVE`) deben elegir explicitamente el responsable del servicio;
   el endpoint `/api/washes` exige `createdById` para ambos roles y solo acepta
   usuarios activos `ADMIN` o `EMPLOYEE`.
+- El refresco manual del historial debe llamar de nuevo a `/api/washes`
+  conservando filtros de periodo/usuario, no hacer `window.location.reload()`
+  porque eso pierde estado de la pantalla y se siente mas lento en PWA.
 - Sin integracion formal de WhatsApp no se pueden listar ni seleccionar
   grupos desde la app web. La alternativa viable es abrir `wa.me/?text=...`
   para que WhatsApp muestre su selector de chats/grupos; fotos solo pueden

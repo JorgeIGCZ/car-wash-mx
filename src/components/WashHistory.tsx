@@ -1,6 +1,12 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import type { FormEvent, TouchEvent } from "react";
 import {
   AlertCircle,
   CalendarDays,
@@ -10,6 +16,7 @@ import {
   HandCoins,
   Pencil,
   ReceiptText,
+  RefreshCw,
   Trash2,
   TrendingUp,
   Users,
@@ -55,6 +62,9 @@ type CommissionEditState = {
   value: string;
 };
 
+const pullRefreshThreshold = 72;
+const pullRefreshMaxDistance = 96;
+
 export function WashHistory({
   embedded = false,
   scope = "PERSONAL",
@@ -86,29 +96,100 @@ export function WashHistory({
   const [savingCommissionKey, setSavingCommissionKey] = useState<string | null>(
     null,
   );
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const pullStartY = useRef<number | null>(null);
+  const pullDistanceRef = useRef(0);
+  const refreshingRef = useRef(false);
   const globalScope = scope === "ALL";
 
   const load = useCallback(async () => {
     if (period === "RANGE" && (!from || !to)) return;
     setLoading(true);
-    const params = new URLSearchParams({ period });
-    if (period === "RANGE") {
-      params.set("from", from);
-      params.set("to", to);
+    try {
+      const params = new URLSearchParams({ period });
+      if (period === "RANGE") {
+        params.set("from", from);
+        params.set("to", to);
+      }
+      if (globalScope) {
+        params.set("scope", "all");
+        if (selectedUser !== "ALL") params.set("userId", selectedUser);
+      }
+      const response = await fetch(`/api/washes?${params}`, { cache: "no-store" });
+      if (response.ok) {
+        const data = await response.json();
+        setWashes(data.washes);
+        setStats(data.stats);
+        setRange(data.range);
+      }
+    } finally {
+      setLoading(false);
     }
-    if (globalScope) {
-      params.set("scope", "all");
-      if (selectedUser !== "ALL") params.set("userId", selectedUser);
-    }
-    const response = await fetch(`/api/washes?${params}`, { cache: "no-store" });
-    if (response.ok) {
-      const data = await response.json();
-      setWashes(data.washes);
-      setStats(data.stats);
-      setRange(data.range);
-    }
-    setLoading(false);
   }, [from, globalScope, period, selectedUser, to]);
+
+  const refreshResults = useCallback(async () => {
+    if (refreshingRef.current) return;
+
+    refreshingRef.current = true;
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      refreshingRef.current = false;
+      setRefreshing(false);
+      pullDistanceRef.current = 0;
+      setPullDistance(0);
+    }
+  }, [load]);
+
+  function updatePullDistance(value: number) {
+    pullDistanceRef.current = value;
+    setPullDistance(value);
+  }
+
+  function touchCanStartRefresh(target: EventTarget) {
+    if (!(target instanceof HTMLElement)) return false;
+    if (target.closest("button, a, input, select, textarea")) return false;
+    return window.scrollY <= 2;
+  }
+
+  function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
+    if (refreshingRef.current || loading || !touchCanStartRefresh(event.target)) {
+      pullStartY.current = null;
+      return;
+    }
+
+    pullStartY.current = event.touches[0]?.clientY ?? null;
+  }
+
+  function handleTouchMove(event: TouchEvent<HTMLDivElement>) {
+    if (pullStartY.current === null) return;
+
+    const touchY = event.touches[0]?.clientY;
+    if (touchY === undefined) return;
+
+    const delta = touchY - pullStartY.current;
+    if (delta <= 0) {
+      updatePullDistance(0);
+      return;
+    }
+
+    event.preventDefault();
+    updatePullDistance(Math.min(delta * 0.55, pullRefreshMaxDistance));
+  }
+
+  function handleTouchEnd() {
+    const shouldRefresh = pullDistanceRef.current >= pullRefreshThreshold;
+    pullStartY.current = null;
+
+    if (shouldRefresh) {
+      void refreshResults();
+      return;
+    }
+
+    updatePullDistance(0);
+  }
 
   async function deleteWash(wash: WashRecord) {
     const confirmed = window.confirm(
@@ -215,8 +296,37 @@ export function WashHistory({
     />
   );
 
+  const pullReady = pullDistance >= pullRefreshThreshold;
+
   return (
-    <div className={embedded ? "admin-history-view" : "mobile-page history-page"}>
+    <div
+      className={embedded ? "admin-history-view" : "mobile-page history-page"}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+    >
+      <div
+        className={`pull-refresh-indicator ${pullReady ? "ready" : ""} ${
+          refreshing ? "refreshing" : ""
+        }`}
+        aria-hidden={pullDistance === 0 && !refreshing}
+        style={{
+          height: refreshing
+            ? 54
+            : Math.round(Math.min(pullDistance, pullRefreshThreshold)),
+          opacity: refreshing || pullDistance > 8 ? 1 : 0,
+        }}
+      >
+        <RefreshCw size={18} />
+        <span>
+          {refreshing
+            ? "Actualizando..."
+            : pullReady
+              ? "Suelta para actualizar"
+              : "Jala para actualizar"}
+        </span>
+      </div>
       {embedded ? (
         <section className="admin-section admin-history-summary">
           <div className="content-heading">

@@ -13,6 +13,18 @@
 
 ## Hecho
 
+- 2026-08-03: Se agrego pull-to-refresh en resultados de historial.
+  - `WashHistory` ahora detecta el gesto movil de jalar hacia abajo cuando
+    la pantalla esta al inicio y vuelve a consultar `/api/washes` conservando
+    filtros de periodo, rango y usuario.
+  - El indicador muestra "Jala para actualizar", "Suelta para actualizar" y
+    "Actualizando..." sin recargar toda la pagina.
+  - `load()` quedo protegido con `try/finally` para no dejar la UI atorada en
+    estado de carga si falla una peticion.
+  - Validacion: `npm run lint` y `npm run build` pasaron. Verificacion visual
+    movil autenticada no se completo porque la base local actual no tiene una
+    contrasena valida conocida para entrar.
+
 - 2026-08-03: Se obligo a administradores a elegir responsable al registrar servicios.
   - `/register` muestra el selector de responsable al inicio del formulario
     para `ADMIN` y `ADMINISTRATIVE`, bloqueando el avance hasta elegir un

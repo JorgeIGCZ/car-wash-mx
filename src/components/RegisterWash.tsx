@@ -202,7 +202,8 @@ export function RegisterWash() {
       ) ?? [],
     [data],
   );
-  const canChooseWashOwner = data?.user.role === "ADMINISTRATIVE";
+  const canChooseWashOwner =
+    data?.user.role === "ADMIN" || data?.user.role === "ADMINISTRATIVE";
   const washOwnerId = canChooseWashOwner ? createdById : data?.user.id ?? null;
   const selectedVehicle = vehicles.find((item) => item.id === vehicleId);
   const selectedPackage = packages.find((item) => item.id === packageId);
@@ -228,12 +229,17 @@ export function RegisterWash() {
       hasRequiredDescription,
   );
   const canAdvance =
-    currentStep === 0 ||
-    (currentStep === 1 && Boolean(vehicleId)) ||
-    (currentStep === 2 && hasConfiguredPackagePrice) ||
+    (currentStep === 0 && hasWashOwner) ||
+    (currentStep === 1 && hasWashOwner && Boolean(vehicleId)) ||
+    (currentStep === 2 && hasWashOwner && hasConfiguredPackagePrice) ||
     (currentStep === 3 && canSave);
 
   function chooseCategory(value: keyof typeof categoryLabels) {
+    if (canChooseWashOwner && !washOwnerId) {
+      setMessage({ type: "error", text: "Selecciona primero el responsable del servicio." });
+      return;
+    }
+
     setCategory(value);
     setPackageId(null);
     setCustomServiceDescription("");
@@ -276,6 +282,7 @@ export function RegisterWash() {
   }
 
   function wizardError() {
+    if (!hasWashOwner) return "Selecciona primero el responsable del servicio.";
     if (currentStep === 1) return "Selecciona el tipo de vehículo.";
     if (currentStep === 2) {
       if (!packageId) return "Selecciona el paquete.";
@@ -283,7 +290,6 @@ export function RegisterWash() {
     }
     if (needsCustomPrice && !hasRequiredCustomPrice) return "Captura el precio acordado.";
     if (!hasRequiredDescription) return "Describe el servicio especial.";
-    if (!hasWashOwner) return "Selecciona a nombre de quién se registra.";
     return "Completa los datos requeridos.";
   }
 
@@ -303,9 +309,9 @@ export function RegisterWash() {
 
   function canOpenStep(step: number) {
     if (step <= currentStep) return true;
-    if (step === 1) return true;
-    if (step === 2) return Boolean(vehicleId);
-    return hasConfiguredPackagePrice;
+    if (step === 1) return hasWashOwner;
+    if (step === 2) return hasWashOwner && Boolean(vehicleId);
+    return hasWashOwner && hasConfiguredPackagePrice;
   }
 
   async function copyShareText() {
@@ -527,6 +533,36 @@ export function RegisterWash() {
       )}
 
       <form onSubmit={submit} className="wash-form">
+        {canChooseWashOwner && (
+          <div className="collaborators owner-assignment">
+            <div className="collaborators-title">
+              <UserRoundPlus size={20} />
+              <div>
+                <strong>Responsable del servicio</strong>
+                <small>Selecciona primero a quién se asignará este registro</small>
+              </div>
+            </div>
+            <select
+              className="owner-select"
+              value={createdById ?? ""}
+              onChange={(event) =>
+                chooseWashOwner(
+                  event.target.value ? Number(event.target.value) : null,
+                )
+              }
+              disabled={saving}
+              required
+            >
+              <option value="">Selecciona un responsable</option>
+              {registrableUsers.map((user) => (
+                <option value={user.id} key={user.id}>
+                  {user.name} · {user.role === "ADMIN" ? "Administrador" : "Encargado"}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="wizard-progress" aria-label="Progreso del registro">
           {wizardSteps.map((step, index) => (
             <button
@@ -560,14 +596,15 @@ export function RegisterWash() {
               const option = categoryOptions[key];
               const Icon = option.icon;
               return (
-              <OptionButton
-                key={key}
-                selected={category === key}
-                onClick={() => chooseCategory(key)}
-                title={categoryLabels[key]}
-                subtitle={option.subtitle}
-                icon={<Icon size={27} />}
-              />
+                <OptionButton
+                  key={key}
+                  selected={category === key}
+                  disabled={canChooseWashOwner && !washOwnerId}
+                  onClick={() => chooseCategory(key)}
+                  title={categoryLabels[key]}
+                  subtitle={option.subtitle}
+                  icon={<Icon size={27} />}
+                />
               );
             })}
           </div>
@@ -645,42 +682,10 @@ export function RegisterWash() {
             <div>
               <h2>Detalles</h2>
               <p>
-                {canChooseWashOwner
-                  ? "Selecciona el responsable, adjunta fotografías y agrega quién participó."
-                  : "Adjunta fotografías y agrega quién participó."}
+                Adjunta fotografías y agrega quién participó.
               </p>
             </div>
           </div>
-
-          {canChooseWashOwner && (
-            <div className="collaborators">
-              <div className="collaborators-title">
-                <UserRoundPlus size={20} />
-                <div>
-                  <strong>Registrar a nombre de</strong>
-                  <small>Administrador o encargado</small>
-                </div>
-              </div>
-              <select
-                className="owner-select"
-                value={createdById ?? ""}
-                onChange={(event) =>
-                  chooseWashOwner(
-                    event.target.value ? Number(event.target.value) : null,
-                  )
-                }
-                disabled={saving}
-                required
-              >
-                <option value="">Selecciona un responsable</option>
-                {registrableUsers.map((user) => (
-                  <option value={user.id} key={user.id}>
-                    {user.name} · {user.role === "ADMIN" ? "Administrador" : "Encargado"}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           <div className="photo-field">
             <div className="collaborators-title">

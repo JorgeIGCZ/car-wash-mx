@@ -79,6 +79,10 @@
 - El flujo de `/register` es el camino principal de uso diario para los
   encargados: mantenerlo corto y evitar pasos o explicaciones adicionales
   antes de completar el registro.
+- En `/register`, los roles con acceso administrativo (`ADMIN` y
+  `ADMINISTRATIVE`) deben elegir explicitamente el responsable del servicio;
+  el endpoint `/api/washes` exige `createdById` para ambos roles y solo acepta
+  usuarios activos `ADMIN` o `EMPLOYEE`.
 - Sin integracion formal de WhatsApp no se pueden listar ni seleccionar
   grupos desde la app web. La alternativa viable es abrir `wa.me/?text=...`
   para que WhatsApp muestre su selector de chats/grupos; fotos solo pueden

@@ -334,7 +334,7 @@ export async function POST(request: Request) {
   }
 
   let creatorId = user.id;
-  if (user.role === "ADMINISTRATIVE") {
+  if (canAccessAdministration(user.role)) {
     if (!parsed.data.createdById) {
       return NextResponse.json(
         { error: "Selecciona a nombre de quién se registra." },

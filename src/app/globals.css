@@ -849,6 +849,11 @@ label em {
   margin-top: 14px;
 }
 
+.owner-assignment {
+  margin-top: 0;
+  margin-bottom: 18px;
+}
+
 .collaborators-title {
   display: flex;
   gap: 10px;

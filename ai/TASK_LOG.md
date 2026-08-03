@@ -13,6 +13,22 @@
 
 ## Hecho
 
+- 2026-08-03: Se obligo a administradores a elegir responsable al registrar servicios.
+  - `/register` muestra el selector de responsable al inicio del formulario
+    para `ADMIN` y `ADMINISTRATIVE`, bloqueando el avance hasta elegir un
+    administrador o encargado activo.
+  - `POST /api/washes` ahora exige `createdById` para ambos roles con acceso
+    administrativo y valida que el responsable seleccionado siga activo y sea
+    `ADMIN` o `EMPLOYEE`.
+  - Validacion: `npm run lint` y `npm run build` pasaron. Smoke test local
+    con sesion temporal de `ADMIN`: alta sin `createdById` respondio 400
+    "Selecciona a nombre de quién se registra."; alta con responsable
+    inexistente respondio 400 "El responsable seleccionado no está
+    disponible.". La sesion temporal fue eliminada. Verificacion visual
+    autenticada no se completo porque no habia una contrasena local valida
+    para la base actual; el servidor de prueba en `localhost:3001` se uso
+    solo para los smoke tests y fue detenido.
+
 - 2026-08-02: Se corrigio el error local de chunk faltante en `/admin`.
   - Causa inmediata: el dev server en `localhost:3000` servia
     `.next-dev/app-build-manifest.json` apuntando a

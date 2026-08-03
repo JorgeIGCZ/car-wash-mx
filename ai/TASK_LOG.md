@@ -13,6 +13,24 @@
 
 ## Hecho
 
+- 2026-08-03: Se simplifico el modal de envio por WhatsApp.
+  - En `/register`, el modal posterior al registro ya no muestra el bloque
+    "Elegir grupo en WhatsApp" ni la explicacion sobre grupos del navegador.
+  - El boton principal cambio de "Elegir grupo" a "Enviar".
+  - Validacion: `npm run lint` y `npm run build` pasaron. Verificacion
+    visual autenticada no se ejecuto porque el cambio es solo de copy en el
+    modal posterior al registro.
+
+- 2026-08-03: Se recupero `/login` en desarrollo local.
+  - Causa inmediata: un proceso `node` viejo seguia escuchando en
+    `localhost:3000` pero no respondia headers; tenia conexiones antiguas a
+    MySQL en `CLOSE_WAIT` despues de reiniciar Docker/MySQL.
+  - Se termino el proceso colgado, se reinicio `npm run dev` y Next volvio a
+    escuchar en `http://localhost:3000`.
+  - Validacion: `docker compose ps` mostro `mysql` healthy; `curl /login`
+    respondio 200 y `POST /api/auth/login` con credenciales falsas respondio
+    401 JSON sin quedarse cargando. No hubo cambios de codigo.
+
 - 2026-08-03: Se agrego pull-to-refresh en resultados de historial.
   - `WashHistory` ahora detecta el gesto movil de jalar hacia abajo cuando
     la pantalla esta al inicio y vuelve a consultar `/api/washes` conservando

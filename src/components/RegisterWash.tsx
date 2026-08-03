@@ -894,14 +894,6 @@ export function RegisterWash() {
               </button>
             </div>
 
-            <div className="whatsapp-destination">
-              <MessageCircle size={20} />
-              <div>
-                <strong>Elegir grupo en WhatsApp</strong>
-                <small>El navegador no puede leer tus grupos sin una integración.</small>
-              </div>
-            </div>
-
             <pre className="whatsapp-message-preview">{sharePayload.text}</pre>
 
             {sharePayload.photoCount > 0 && (
@@ -926,7 +918,7 @@ export function RegisterWash() {
                 onClick={() => setShareNotice(null)}
               >
                 <MessageCircle size={19} />
-                Elegir grupo
+                Enviar
               </a>
               {sharePayload.photos.length > 0 && (
                 <button type="button" className="secondary-button" onClick={sharePhotos}>

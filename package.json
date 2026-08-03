@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "TZ=America/Mexico_City next dev",
-    "build": "TZ=America/Mexico_City next build",
+    "build": "prisma migrate deploy && prisma generate && TZ=America/Mexico_City next build",
     "start": "TZ=America/Mexico_City next start",
     "lint": "eslint .",
     "prisma:generate": "prisma generate",

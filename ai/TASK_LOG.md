@@ -13,6 +13,19 @@
 
 ## Hecho
 
+- 2026-08-17: Se actualizaron dependencias vulnerables sin cambiar de major.
+  - Next y `eslint-config-next` quedaron en 15.5.x, manteniendo Next 15 y
+    evitando migrar a Next 16.
+  - Se actualizaron/parcharon `postcss`, `nanoid`, `sharp`, `js-yaml`,
+    `brace-expansion` y `deepmerge-ts` mediante rangos y overrides acotados.
+  - `sharp` quedo deduplicado en 0.35.3 para evitar la copia vulnerable
+    transitiva de Next.
+  - Validacion: `npm run lint`, `npx tsc --noEmit`, `npx prisma validate` y
+    `npm run build` pasaron. Smoke del standalone: `/login`, `/register`,
+    CSS, icono e imagen optimizada respondieron correctamente. El POST local
+    de login en standalone intento usar `.env.production`, riesgo ya
+    documentado en `AGENT_MEMORY`.
+
 - 2026-08-17: Se homologo el resumen de historial admin con los cards de egresos.
   - Los stats de historial admin ahora usan iconos dentro de badges de color
     para servicios, ingresos, comisiones, egresos y ganancia neta.

@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   Armchair,
+  Banknote,
   BusFront,
   Camera,
   CarFront,
@@ -18,8 +19,10 @@ import {
   ChevronRight,
   ClipboardPlus,
   Copy,
+  CreditCard,
   Droplets,
   ImageIcon,
+  Landmark,
   Layers3,
   MessageCircle,
   ShieldCheck,
@@ -29,9 +32,10 @@ import {
   Wind,
   X,
 } from "lucide-react";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatPaymentType } from "@/lib/format";
 import type {
   BootstrapData,
+  PaymentType,
   ServicePackageOption,
 } from "@/types/domain";
 import { PageHero } from "@/components/PageHero";
@@ -67,6 +71,15 @@ const categoryOptions = {
 
 const wizardSteps = ["Servicio", "Vehículo", "Paquete", "Detalles"] as const;
 const lastWizardStep = wizardSteps.length - 1;
+const paymentOptions = [
+  { value: "CASH", label: "Efectivo", icon: Banknote },
+  { value: "CARD", label: "Tarjeta", icon: CreditCard },
+  { value: "TRANSFER", label: "Transferencia", icon: Landmark },
+] satisfies {
+  value: PaymentType;
+  label: string;
+  icon: React.ComponentType<{ size?: number }>;
+}[];
 
 type WhatsAppSharePayload = {
   washId: number;
@@ -90,6 +103,7 @@ function buildWashShareText({
   packageName,
   categoryLabel,
   chargedPrice,
+  paymentType,
   creatorName,
   participantNames,
   plate,
@@ -103,6 +117,7 @@ function buildWashShareText({
   packageName: string;
   categoryLabel: string;
   chargedPrice: number;
+  paymentType: PaymentType;
   creatorName: string;
   participantNames: string[];
   plate: string;
@@ -120,6 +135,7 @@ function buildWashShareText({
     `Servicio: ${categoryLabel} - ${packageName}`,
     `Vehículo: ${vehicleName}`,
     `Precio: ${formatMoney(chargedPrice)}`,
+    `Pago: ${formatPaymentType(paymentType)}`,
     `Responsable: ${creatorName}`,
   ];
 
@@ -151,6 +167,7 @@ export function RegisterWash() {
   const [createdById, setCreatedById] = useState<number | null>(null);
   const [participants, setParticipants] = useState<number[]>([]);
   const [customPrice, setCustomPrice] = useState("");
+  const [paymentType, setPaymentType] = useState<PaymentType>("CASH");
   const [plate, setPlate] = useState("");
   const [notes, setNotes] = useState("");
   const [customServiceDescription, setCustomServiceDescription] = useState("");
@@ -415,6 +432,7 @@ export function RegisterWash() {
           createdById: canChooseWashOwner ? washOwnerId : undefined,
           plate,
           customPrice: needsCustomPrice ? Number(customPrice) : null,
+          paymentType,
           notes,
           customServiceDescription: selectedPackage?.requiresDescription
             ? customServiceDescription
@@ -428,10 +446,25 @@ export function RegisterWash() {
       setSaving(false);
       return;
     }
-    const result = await response.json();
+    const result = (await response.json().catch(() => null)) as {
+      id?: number;
+      chargedPrice?: number;
+      paymentType?: PaymentType;
+      error?: string;
+    } | null;
 
     if (!response.ok) {
-      setMessage({ type: "error", text: result.error ?? "No fue posible registrar el lavado." });
+      setMessage({
+        type: "error",
+        text: result?.error ?? "No fue posible registrar el lavado.",
+      });
+      savingRef.current = false;
+      setSaving(false);
+      return;
+    }
+
+    if (!result?.id) {
+      setMessage({ type: "error", text: "El servidor no devolvió el lavado registrado." });
       savingRef.current = false;
       setSaving(false);
       return;
@@ -470,6 +503,7 @@ export function RegisterWash() {
         packageName: selectedPackage?.name ?? "No especificado",
         categoryLabel: categoryLabels[category],
         chargedPrice: Number(result.chargedPrice ?? total),
+        paymentType: result.paymentType ?? paymentType,
         creatorName,
         participantNames,
         plate,
@@ -490,6 +524,7 @@ export function RegisterWash() {
     setCreatedById(null);
     setParticipants([]);
     setCustomPrice("");
+    setPaymentType("CASH");
     setPlate("");
     setNotes("");
     setCustomServiceDescription("");
@@ -802,6 +837,31 @@ export function RegisterWash() {
                 </span>
               </label>
             )}
+
+            <div className="payment-type-field wide">
+              <div>
+                <strong>Tipo de pago</strong>
+                <small>Preseleccionado en efectivo</small>
+              </div>
+              <div className="payment-type-options">
+                {paymentOptions.map((option) => {
+                  const Icon = option.icon;
+                  const selected = paymentType === option.value;
+                  return (
+                    <button
+                      type="button"
+                      key={option.value}
+                      className={selected ? "selected" : ""}
+                      disabled={saving}
+                      onClick={() => setPaymentType(option.value)}
+                    >
+                      <Icon size={18} />
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             {selectedPackage?.requiresDescription && (
               <label className="wide">

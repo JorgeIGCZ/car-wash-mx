@@ -11,7 +11,7 @@ del catalogo, con foco en un flujo de registro rapido para los encargados.
 ## Alcance actual
 
 - Login con roles: administrador, administrativo, encargado.
-- Registro de lavado normal, interiores y servicio especial.
+- Registro de lavado normal, interiores y servicio especial, con tipo de pago.
 - El personal administrativo puede registrar lavados a nombre de un
   administrador o encargado activo.
 - Tipos de vehiculo y precios por combinacion de paquete y vehiculo,

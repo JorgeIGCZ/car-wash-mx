@@ -20,6 +20,9 @@ const updateCommissionSchema = z
   });
 
 const assignSchema = z.object({ assignToId: z.number().int().positive() });
+const updatePriceSchema = z.object({
+  chargedPrice: z.number().positive().max(999999),
+});
 
 function calculateCommissionAmount(
   chargedPrice: number,
@@ -49,14 +52,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Lavado no válido." }, { status: 400 });
   }
 
-  // Load the wash first (used both for assign and commission paths)
   const wash = await prisma.wash.findFirst({
     where: { id: washId, deletedAt: null },
     select: {
       id: true,
       chargedPrice: true,
-      createdById: true,
-      participants: { select: { userId: true } },
     },
   });
 
@@ -94,6 +94,58 @@ export async function PATCH(
     return NextResponse.json({ ok: true, wash: updated });
   }
 
+  if (body && Object.prototype.hasOwnProperty.call(body, "chargedPrice")) {
+    const parsedPrice = updatePriceSchema.safeParse(body);
+    if (!parsedPrice.success) {
+      return NextResponse.json(
+        { error: "Captura una cantidad cobrada válida." },
+        { status: 400 },
+      );
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedWash = await tx.wash.update({
+        where: { id: wash.id },
+        data: { chargedPrice: parsedPrice.data.chargedPrice },
+        select: { id: true, chargedPrice: true },
+      });
+      const percentageCommissions = await tx.washCommission.findMany({
+        where: { washId: wash.id, type: "PERCENTAGE" },
+        select: { userId: true, value: true },
+      });
+
+      await Promise.all(
+        percentageCommissions.map((commission) =>
+          tx.washCommission.update({
+            where: {
+              washId_userId: {
+                washId: wash.id,
+                userId: commission.userId,
+              },
+            },
+            data: {
+              amount: calculateCommissionAmount(
+                parsedPrice.data.chargedPrice,
+                "PERCENTAGE",
+                Number(commission.value),
+              ),
+            },
+          }),
+        ),
+      );
+
+      return updatedWash;
+    });
+
+    return NextResponse.json({
+      ok: true,
+      wash: {
+        id: updated.id,
+        chargedPrice: Number(updated.chargedPrice),
+      },
+    });
+  }
+
   // Otherwise treat as commission update
   const parsed = updateCommissionSchema.safeParse(body);
   if (!parsed.success) {
@@ -106,6 +158,21 @@ export async function PATCH(
   // Admins are allowed to set commissions; no longer restrict only to
   // participants/creator. This allows assigning commission to the new
   // responsible user even if they weren't previously listed as a worker.
+  const commissionUser = await prisma.user.findFirst({
+    where: {
+      id: parsed.data.userId,
+      active: true,
+      role: { in: ["ADMIN", "EMPLOYEE"] },
+    },
+    select: { id: true },
+  });
+
+  if (!commissionUser) {
+    return NextResponse.json(
+      { error: "Selecciona una persona activa para comisionar." },
+      { status: 400 },
+    );
+  }
 
   const amount = calculateCommissionAmount(
     Number(wash.chargedPrice),

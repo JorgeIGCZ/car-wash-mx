@@ -24,6 +24,12 @@ enum ServiceCategory {
   SPECIAL
 }
 
+enum PaymentType {
+  CASH
+  CARD
+  TRANSFER
+}
+
 model User {
   id                     Int               @id @default(autoincrement())
   name                   String
@@ -101,6 +107,7 @@ model Wash {
   id                       Int               @id @default(autoincrement())
   plate                    String?           @db.VarChar(32)
   chargedPrice             Decimal           @db.Decimal(10, 2)
+  paymentType              PaymentType       @default(CASH)
   notes                    String?           @db.Text
   customServiceDescription String?           @db.Text
   deletedAt                DateTime?

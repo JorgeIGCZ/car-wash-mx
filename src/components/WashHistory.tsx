@@ -12,9 +12,12 @@ import {
   CalendarDays,
   CarFront,
   Check,
+  ChevronRight,
   ClipboardList,
+  CreditCard,
   HandCoins,
   Pencil,
+  Plus,
   ReceiptText,
   RefreshCw,
   Trash2,
@@ -24,7 +27,7 @@ import {
 } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
 import { PhotoLightbox, type LightboxPhoto } from "@/components/PhotoLightbox";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatPaymentType } from "@/lib/format";
 import type { AppUser, ProfitDetail, WashRecord } from "@/types/domain";
 
 type Period = "TODAY" | "WEEK" | "MONTH" | "RANGE";
@@ -51,6 +54,7 @@ type WashHistoryProps = {
   users?: AppUser[];
   canDelete?: boolean;
   canEditCommissions?: boolean;
+  canEditPrices?: boolean;
 };
 
 type WashCommissionEntry = WashRecord["commissions"][number];
@@ -59,6 +63,12 @@ type CommissionEditState = {
   washId: number;
   userId: number;
   type: WashCommissionEntry["type"];
+  value: string;
+  mode: "edit" | "add";
+};
+
+type PriceEditState = {
+  washId: number;
   value: string;
 };
 
@@ -71,6 +81,7 @@ export function WashHistory({
   users = [],
   canDelete = false,
   canEditCommissions = false,
+  canEditPrices = false,
 }: WashHistoryProps) {
   const [period, setPeriod] = useState<Period>("TODAY");
   const [from, setFrom] = useState("");
@@ -96,6 +107,9 @@ export function WashHistory({
   const [savingCommissionKey, setSavingCommissionKey] = useState<string | null>(
     null,
   );
+  const [priceError, setPriceError] = useState("");
+  const [priceEdit, setPriceEdit] = useState<PriceEditState | null>(null);
+  const [savingPriceId, setSavingPriceId] = useState<number | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const pullStartY = useRef<number | null>(null);
@@ -222,17 +236,36 @@ export function WashHistory({
     commission: WashCommissionEntry,
   ) {
     setCommissionError("");
+    setPriceEdit(null);
     setCommissionEdit({
       washId,
       userId: commission.user.id,
       type: commission.type,
       value: String(commission.value),
+      mode: "edit",
+    });
+  }
+
+  function startCommissionAdd(wash: WashRecord) {
+    setCommissionError("");
+    setPriceEdit(null);
+    setCommissionEdit({
+      washId: wash.id,
+      userId: 0,
+      type: "PERCENTAGE",
+      value: "",
+      mode: "add",
     });
   }
 
   async function saveCommission(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!commissionEdit) return;
+
+    if (!Number.isInteger(commissionEdit.userId) || commissionEdit.userId <= 0) {
+      setCommissionError("Selecciona una persona para comisionar.");
+      return;
+    }
 
     const value = Number(commissionEdit.value);
     if (!Number.isFinite(value) || value < 0) {
@@ -269,6 +302,48 @@ export function WashHistory({
     }
 
     setCommissionEdit(null);
+    await load();
+  }
+
+  function startPriceEdit(wash: WashRecord) {
+    setPriceError("");
+    setCommissionEdit(null);
+    setPriceEdit({
+      washId: wash.id,
+      value: String(wash.chargedPrice ?? 0),
+    });
+  }
+
+  async function savePrice(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!priceEdit) return;
+
+    const chargedPrice = Number(priceEdit.value);
+    if (!Number.isFinite(chargedPrice) || chargedPrice <= 0 || chargedPrice > 999999) {
+      setPriceError("Captura una cantidad cobrada válida.");
+      return;
+    }
+
+    setPriceError("");
+    setSavingPriceId(priceEdit.washId);
+    const response = await fetch(`/api/washes/${priceEdit.washId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chargedPrice }),
+    });
+    setSavingPriceId(null);
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      setPriceError(
+        typeof payload?.error === "string"
+          ? payload.error
+          : "No fue posible actualizar la cantidad cobrada.",
+      );
+      return;
+    }
+
+    setPriceEdit(null);
     await load();
   }
 
@@ -341,8 +416,8 @@ export function WashHistory({
           </div>
           {filters}
           <div className="financial-stats">
-            <StatCard label="Servicios" value={String(stats.count)} />
-            <StatCard label="Ingresos" value={formatMoney(stats.income ?? 0)} />
+            <StatCard label="Servicios" value={String(stats.count)} icon="services" />
+            <StatCard label="Ingresos" value={formatMoney(stats.income ?? 0)} icon="income" />
             <StatCard
               label={selectedUser === "ALL" ? "Comisiones" : "Comisión del usuario"}
               value={formatMoney(
@@ -390,10 +465,10 @@ export function WashHistory({
       )}
 
       <section className={`history-list ${embedded ? "admin-history-list" : ""}`}>
-        {(deleteError || commissionError) && (
+        {(deleteError || commissionError || priceError) && (
           <div className="history-alert">
             <AlertCircle size={17} />
-            {deleteError || commissionError}
+            {deleteError || commissionError || priceError}
           </div>
         )}
         {loading ? (
@@ -419,16 +494,21 @@ export function WashHistory({
                     {wash.plate ? ` · ${wash.plate}` : ""}
                   </p>
                 </div>
-                <div className="record-amount">
-                  <span>{embedded ? "Cobrado" : "Mi comisión"}</span>
-                  <strong>
-                    {formatMoney(
-                      embedded
-                        ? wash.chargedPrice ?? 0
-                        : wash.personalCommission,
-                    )}
-                  </strong>
-                </div>
+                <RecordAmount
+                  wash={wash}
+                  embedded={embedded}
+                  canEdit={canEditPrices}
+                  edit={priceEdit}
+                  savingId={savingPriceId}
+                  onStartEdit={startPriceEdit}
+                  onCancelEdit={() => setPriceEdit(null)}
+                  onDraftChange={(value) =>
+                    setPriceEdit((current) =>
+                      current ? { ...current, value } : current,
+                    )
+                  }
+                  onSave={savePrice}
+                />
                 {embedded && canDelete && (
                   <button
                     type="button"
@@ -458,6 +538,10 @@ export function WashHistory({
                     ),
                   ].join(", ")}
                 </span>
+                <span>
+                  <CreditCard size={15} />
+                  {formatPaymentType(wash.paymentType)}
+                </span>
               </div>
               {embedded && (
                 <>
@@ -473,11 +557,13 @@ export function WashHistory({
                   </div>
                   <CommissionBreakdown
                     wash={wash}
+                    users={users}
                     selectedUser={selectedUser}
                     canEdit={canEditCommissions}
                     edit={commissionEdit}
                     savingKey={savingCommissionKey}
                     onStartEdit={startCommissionEdit}
+                    onStartAdd={startCommissionAdd}
                     onCancelEdit={() => setCommissionEdit(null)}
                     onDraftChange={(patch) =>
                       setCommissionEdit((current) =>
@@ -553,6 +639,78 @@ function commissionKey(washId: number, userId: number) {
   return `${washId}:${userId}`;
 }
 
+function RecordAmount({
+  wash,
+  embedded,
+  canEdit,
+  edit,
+  savingId,
+  onStartEdit,
+  onCancelEdit,
+  onDraftChange,
+  onSave,
+}: {
+  wash: WashRecord;
+  embedded: boolean;
+  canEdit: boolean;
+  edit: PriceEditState | null;
+  savingId: number | null;
+  onStartEdit: (wash: WashRecord) => void;
+  onCancelEdit: () => void;
+  onDraftChange: (value: string) => void;
+  onSave: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const isEditing = edit?.washId === wash.id;
+  const isSaving = savingId === wash.id;
+  const amount = embedded ? wash.chargedPrice ?? 0 : wash.personalCommission;
+
+  if (isEditing) {
+    return (
+      <form className="record-amount price-edit-form" onSubmit={onSave}>
+        <label>
+          Cobrado
+          <input
+            type="number"
+            min="0.01"
+            max="999999"
+            step="0.01"
+            value={edit.value}
+            disabled={isSaving}
+            onChange={(event) => onDraftChange(event.target.value)}
+          />
+        </label>
+        <div className="price-edit-actions">
+          <button type="submit" title="Guardar cantidad cobrada" disabled={isSaving}>
+            <Check size={14} />
+          </button>
+          <button type="button" title="Cancelar" disabled={isSaving} onClick={onCancelEdit}>
+            <X size={14} />
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <div className="record-amount">
+      <span>{embedded ? "Cobrado" : "Mi comisión"}</span>
+      <div className="record-amount-line">
+        <strong>{formatMoney(amount)}</strong>
+        {embedded && canEdit && (
+          <button
+            type="button"
+            className="price-edit-button"
+            title="Editar cantidad cobrada"
+            onClick={() => onStartEdit(wash)}
+          >
+            <Pencil size={13} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function getCommissionEntries(wash: WashRecord): WashCommissionEntry[] {
   const commissionsByUser = new Map(
     wash.commissions.map((commission) => [commission.user.id, commission]),
@@ -587,26 +745,42 @@ function getCommissionEntries(wash: WashRecord): WashCommissionEntry[] {
 
 function CommissionBreakdown({
   wash,
+  users,
   selectedUser,
   canEdit,
   edit,
   savingKey,
   onStartEdit,
+  onStartAdd,
   onCancelEdit,
   onDraftChange,
   onSave,
 }: {
   wash: WashRecord;
+  users: AppUser[];
   selectedUser: string;
   canEdit: boolean;
   edit: CommissionEditState | null;
   savingKey: string | null;
   onStartEdit: (washId: number, commission: WashCommissionEntry) => void;
+  onStartAdd: (wash: WashRecord) => void;
   onCancelEdit: () => void;
   onDraftChange: (patch: Partial<CommissionEditState>) => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const entries = getCommissionEntries(wash);
+  const commissionedUserIds = new Set(
+    entries.map((commission) => commission.user.id),
+  );
+  const availableUsers = users.filter(
+    (user) =>
+      user.active &&
+      user.role !== "ADMINISTRATIVE" &&
+      !commissionedUserIds.has(user.id),
+  );
+  const isAdding = edit?.washId === wash.id && edit.mode === "add";
+  const addSavingKey =
+    edit && isAdding ? commissionKey(wash.id, edit.userId) : null;
 
   return (
     <div className="commission-breakdown">
@@ -614,17 +788,19 @@ function CommissionBreakdown({
         const key = commissionKey(wash.id, commission.user.id);
         const isSelected = selectedUser === String(commission.user.id);
         const isEditing =
-          edit?.washId === wash.id && edit.userId === commission.user.id;
+          edit?.mode === "edit" &&
+          edit.washId === wash.id &&
+          edit.userId === commission.user.id;
         const isSaving = savingKey === key;
 
         if (isEditing) {
           return (
             <form
-              className={`commission-edit-form ${isSelected ? "selected" : ""}`}
+              className={`commission-row commission-edit-form ${isSelected ? "selected" : ""}`}
               key={commission.user.id}
               onSubmit={onSave}
             >
-              <b>{commission.user.name}</b>
+              <b className="commission-person">{commission.user.name}</b>
               <select
                 value={edit.type}
                 disabled={isSaving}
@@ -634,8 +810,8 @@ function CommissionBreakdown({
                   })
                 }
               >
-                <option value="PERCENTAGE">%</option>
-                <option value="FIXED">$</option>
+                <option value="PERCENTAGE">Porcentaje</option>
+                <option value="FIXED">Monto fijo</option>
               </select>
               <input
                 type="number"
@@ -646,27 +822,34 @@ function CommissionBreakdown({
                 disabled={isSaving}
                 onChange={(event) => onDraftChange({ value: event.target.value })}
               />
-              <button type="submit" title="Guardar comisión" disabled={isSaving}>
-                <Check size={14} />
-              </button>
-              <button type="button" title="Cancelar" disabled={isSaving} onClick={onCancelEdit}>
-                <X size={14} />
-              </button>
+              <div className="commission-row-actions">
+                <button type="submit" title="Guardar comisión" disabled={isSaving}>
+                  <Check size={14} />
+                </button>
+                <button type="button" title="Cancelar" disabled={isSaving} onClick={onCancelEdit}>
+                  <X size={14} />
+                </button>
+              </div>
             </form>
           );
         }
 
         return (
-          <span
-            className={`${isSelected ? "selected" : ""} ${
+          <div
+            className={`commission-row ${isSelected ? "selected" : ""} ${
               commission.amount === 0 ? "empty-commission" : ""
             }`}
             key={commission.user.id}
           >
-            <b>{commission.user.name}</b>
-            {commission.type === "PERCENTAGE"
-              ? `${commission.value}%`
-              : `${formatMoney(commission.value)} fijos`}
+            <b className="commission-person">{commission.user.name}</b>
+            <span className="commission-rule">
+              {commission.type === "PERCENTAGE" ? "Porcentaje" : "Monto fijo"}
+            </span>
+            <span className="commission-value">
+              {commission.type === "PERCENTAGE"
+                ? `${commission.value}%`
+                : formatMoney(commission.value)}
+            </span>
             <strong>{formatMoney(commission.amount)}</strong>
             {canEdit && (
               <button
@@ -678,9 +861,80 @@ function CommissionBreakdown({
                 <Pencil size={13} />
               </button>
             )}
-          </span>
+          </div>
         );
       })}
+      {canEdit && edit && isAdding && (
+        <form
+          className="commission-row commission-edit-form commission-add-form"
+          onSubmit={onSave}
+        >
+          <select
+            className="commission-person-select"
+            value={edit.userId}
+            disabled={savingKey === addSavingKey}
+            onChange={(event) =>
+              onDraftChange({ userId: Number(event.target.value) })
+            }
+          >
+            <option value={0}>Persona</option>
+            {availableUsers.map((user) => (
+              <option value={user.id} key={user.id}>
+                {user.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={edit.type}
+            disabled={savingKey === addSavingKey}
+            onChange={(event) =>
+              onDraftChange({
+                type: event.target.value as CommissionEditState["type"],
+              })
+            }
+          >
+            <option value="PERCENTAGE">Porcentaje</option>
+            <option value="FIXED">Monto fijo</option>
+          </select>
+          <input
+            type="number"
+            min="0"
+            max={edit.type === "PERCENTAGE" ? 100 : 999999}
+            step="0.01"
+            value={edit.value}
+            disabled={savingKey === addSavingKey}
+            placeholder={edit.type === "PERCENTAGE" ? "0%" : "$0.00"}
+            onChange={(event) => onDraftChange({ value: event.target.value })}
+          />
+          <div className="commission-row-actions">
+            <button
+              type="submit"
+              title="Guardar comisión"
+              disabled={savingKey === addSavingKey || availableUsers.length === 0}
+            >
+              <Check size={14} />
+            </button>
+            <button
+              type="button"
+              title="Cancelar"
+              disabled={savingKey === addSavingKey}
+              onClick={onCancelEdit}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </form>
+      )}
+      {canEdit && !isAdding && availableUsers.length > 0 && (
+        <button
+          type="button"
+          className="commission-add-button"
+          onClick={() => onStartAdd(wash)}
+        >
+          <Plus size={14} />
+          Agregar comisión
+        </button>
+      )}
     </div>
   );
 }
@@ -787,16 +1041,34 @@ function StatCard({
 }: {
   label: string;
   value: string;
-  icon?: "commission" | "expense" | "net";
+  icon: "services" | "income" | "commission" | "expense" | "net";
   onClick?: () => void;
 }) {
+  const Icon =
+    icon === "services"
+      ? CarFront
+      : icon === "income"
+        ? CreditCard
+        : icon === "commission"
+          ? HandCoins
+          : icon === "expense"
+            ? ReceiptText
+            : TrendingUp;
   const content = (
     <>
-      {icon === "commission" && <HandCoins size={19} />}
-      {icon === "expense" && <ReceiptText size={19} />}
-      {icon === "net" && <TrendingUp size={19} />}
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <span className="stat-card-icon">
+        <Icon size={18} />
+      </span>
+      <div className="stat-card-copy">
+        <span>{label}</span>
+        <strong>{value}</strong>
+        {onClick && (
+          <small className="stat-card-action">
+            Ver detalle
+            <ChevronRight size={14} aria-hidden="true" />
+          </small>
+        )}
+      </div>
     </>
   );
 
@@ -804,7 +1076,8 @@ function StatCard({
     return (
       <button
         type="button"
-        className={icon ? "with-icon clickable" : "without-icon clickable"}
+        className={`with-icon clickable ${icon}`}
+        aria-label={`${label}: ${value}. Ver detalle`}
         onClick={onClick}
       >
         {content}
@@ -813,7 +1086,7 @@ function StatCard({
   }
 
   return (
-    <div className={icon ? "with-icon" : "without-icon"}>
+    <div className={`with-icon ${icon}`}>
       {content}
     </div>
   );

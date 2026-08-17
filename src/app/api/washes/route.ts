@@ -16,6 +16,7 @@ const createWashSchema = z.object({
   createdById: z.number().int().positive().optional(),
   plate: z.string().trim().max(32).optional().nullable(),
   customPrice: z.number().positive().max(999999).optional().nullable(),
+  paymentType: z.enum(["CASH", "CARD", "TRANSFER"]).default("CASH"),
   notes: z.string().trim().max(2000).optional().nullable(),
   customServiceDescription: z.string().trim().max(2000).optional().nullable(),
   participantIds: z.array(z.number().int().positive()).max(20).default([]),
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
           OR: [
             { createdById: requestedUserId },
             { participants: { some: { userId: requestedUserId } } },
+            { commissions: { some: { userId: requestedUserId } } },
           ],
         }
       : {};
@@ -82,6 +84,7 @@ export async function GET(request: NextRequest) {
         OR: [
           { createdById: user.id },
           { participants: { some: { userId: user.id } } },
+          { commissions: { some: { userId: user.id } } },
         ],
       };
   const where: Prisma.WashWhereInput = {
@@ -466,6 +469,7 @@ export async function POST(request: Request) {
       notes: parsed.data.notes || null,
       customServiceDescription: parsed.data.customServiceDescription || null,
       chargedPrice,
+      paymentType: parsed.data.paymentType,
       createdById: creatorId,
       vehicleTypeId: vehicleType.id,
       packageId: servicePackage.id,
@@ -481,7 +485,11 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json(
-    { id: wash.id, chargedPrice: Number(wash.chargedPrice) },
+    {
+      id: wash.id,
+      chargedPrice: Number(wash.chargedPrice),
+      paymentType: wash.paymentType,
+    },
     { status: 201 },
   );
 }

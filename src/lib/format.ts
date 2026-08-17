@@ -6,6 +6,16 @@ export function formatMoney(value: number | string) {
   }).format(Number(value));
 }
 
+export function formatPaymentType(value: "CASH" | "CARD" | "TRANSFER") {
+  const labels = {
+    CASH: "Efectivo",
+    CARD: "Tarjeta",
+    TRANSFER: "Transferencia",
+  } satisfies Record<"CASH" | "CARD" | "TRANSFER", string>;
+
+  return labels[value];
+}
+
 export function localDayRange(date = new Date()) {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);

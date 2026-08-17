@@ -6,4 +6,5 @@ node_modules
 .env.production
 coverage
 *.log
+tsconfig.tsbuildinfo
 .DS_Store

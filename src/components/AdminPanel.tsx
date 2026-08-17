@@ -259,6 +259,7 @@ export function AdminPanel() {
           users={users}
           canDelete={canEdit}
           canEditCommissions={canEdit}
+          canEditPrices={canEdit}
         />
       )}
       {tab === "EXPENSES" && (

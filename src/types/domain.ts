@@ -96,10 +96,13 @@ export type ProfitDetail = {
   }[];
 };
 
+export type PaymentType = "CASH" | "CARD" | "TRANSFER";
+
 export type WashRecord = {
   id: number;
   plate: string | null;
   chargedPrice?: number;
+  paymentType: PaymentType;
   totalCommission?: number;
   netIncome?: number;
   personalCommission: number;

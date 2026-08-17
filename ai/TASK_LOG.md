@@ -13,6 +13,68 @@
 
 ## Hecho
 
+- 2026-08-17: Se homologo el resumen de historial admin con los cards de egresos.
+  - Los stats de historial admin ahora usan iconos dentro de badges de color
+    para servicios, ingresos, comisiones, egresos y ganancia neta.
+  - `StatCard` usa una estructura visual consistente con `ExpenseSummaryCard`
+    para mantener homogeneidad en codigo y UI.
+  - Validacion: `npm run lint`, `npx tsc --noEmit` y `npm run build`
+    pasaron.
+
+- 2026-08-17: Se hizo visible la accion del resumen de ganancia neta.
+  - El card clickeable "Ganancia neta" ahora muestra "Ver detalle" con
+    flecha, cursor y estados hover/focus para que se perciba como boton.
+  - Validacion: `npm run lint`, `npx tsc --noEmit` y `npm run build`
+    pasaron.
+
+- 2026-08-17: Se corrigio la UI de edicion de comisiones en historial.
+  - El lapiz de edicion del monto cobrado quedo en la misma linea que el
+    costo; la etiqueta "Cobrado" queda centrada sobre el conjunto.
+  - El desglose de comisiones dejo de usar chips y ahora muestra filas con
+    persona, tipo visible ("Porcentaje" o "Monto fijo"), valor, monto
+    calculado y boton de edicion alineado.
+  - Se corrigio overflow de las tarjetas internas de historial haciendo que
+    el grid principal, tarjetas financieras y filas de comision respeten el
+    ancho disponible.
+  - La edicion ya no depende de un selector angosto con simbolos `%`/`$`;
+    usa etiquetas completas para evitar que el tipo no se vea.
+  - Administracion ahora permite agregar una nueva persona que comisione un
+    servicio desde el historial, creando `WashCommission` aunque no haya sido
+    participante original.
+  - El historial personal/global ahora considera `WashCommission.userId` en
+    los filtros, para que esas comisiones agregadas aparezcan al filtrar por
+    usuario.
+  - Validacion: `npm run lint`, `npx tsc --noEmit` y `npm run build`
+    pasaron. El dev server recompilo sin errores.
+
+- 2026-08-17: Se agrego tipo de pago al registro de servicios.
+  - `Wash` ahora guarda `paymentType` (`CASH`, `CARD`, `TRANSFER`) con
+    default `CASH`; se agrego la migracion
+    `20260817120000_add_wash_payment_type`.
+  - `/register` muestra un selector de tipo de pago en Detalles, con
+    Efectivo preseleccionado, y envia el valor a `POST /api/washes`.
+  - Historial y mensaje de WhatsApp muestran el tipo de pago registrado.
+  - Como `prisma migrate deploy` sigue fallando localmente por `Schema engine
+    error`, se aplico manualmente la migracion en MySQL local y se registro
+    su checksum en `_prisma_migrations`.
+  - El submit de `/register` ahora maneja respuestas no JSON del servidor sin
+    mostrar overlay de runtime en el navegador.
+  - Validacion: `npm run prisma:generate`, `npm run lint`,
+    `npx tsc --noEmit` y `npx prisma validate` pasaron. `npm run build` no
+    pudo completarse porque `prisma migrate deploy` falla contra la base local
+    con `Schema engine error`, bloqueo ya documentado en `ai/AGENT_MEMORY.md`.
+
+- 2026-08-17: Se agrego edicion administrativa de la cantidad cobrada en historial.
+  - En el historial de todo el equipo dentro de Administracion, ADMIN puede
+    editar inline el monto "Cobrado" de cada servicio.
+  - `PATCH /api/washes/[id]` ahora acepta `chargedPrice` para ADMIN y, al
+    cambiarlo, recalcula los importes de comisiones porcentuales historicas
+    contra el nuevo monto; las comisiones fijas se conservan.
+  - Validacion: `npm run lint`, `npx tsc --noEmit` y `npx prisma validate`
+    pasaron. `npm run build` no pudo completarse porque `prisma migrate
+    deploy` falla contra la base local con `Schema engine error`, bloqueo ya
+    documentado en `ai/AGENT_MEMORY.md`.
+
 - 2026-08-03: Se simplifico el modal de envio por WhatsApp.
   - En `/register`, el modal posterior al registro ya no muestra el bloque
     "Elegir grupo en WhatsApp" ni la explicacion sobre grupos del navegador.

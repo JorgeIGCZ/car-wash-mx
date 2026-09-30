@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import { canAccessAdministration, getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const updateCommissionSchema = z
@@ -24,6 +24,14 @@ const updatePriceSchema = z.object({
   chargedPrice: z.number().positive().max(999999),
 });
 
+const updateDetailsSchema = z.object({
+  serviceDate: z.string().date().refine((value) => value >= "1000-01-01", {
+    message: "Selecciona una fecha válida.",
+  }).optional(),
+  paymentType: z.enum(["CASH", "CARD", "TRANSFER"]).optional(),
+  notes: z.string().trim().max(2000).nullable().optional(),
+}).strict();
+
 function calculateCommissionAmount(
   chargedPrice: number,
   type: "PERCENTAGE" | "FIXED",
@@ -43,7 +51,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Sesión no válida." }, { status: 401 });
   }
 
-  if (user.role !== "ADMIN") {
+  if (!canAccessAdministration(user.role)) {
     return NextResponse.json({ error: "Acceso restringido." }, { status: 403 });
   }
 
@@ -52,11 +60,21 @@ export async function PATCH(
     return NextResponse.json({ error: "Lavado no válido." }, { status: 400 });
   }
 
+  const body = await request.json().catch(() => ({}));
+  const isDetailsUpdate = body && ["serviceDate", "paymentType", "notes"].some(
+    (field) => Object.prototype.hasOwnProperty.call(body, field),
+  );
+
+  if (!isDetailsUpdate && user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Acceso restringido." }, { status: 403 });
+  }
+
   const wash = await prisma.wash.findFirst({
     where: { id: washId, deletedAt: null },
     select: {
       id: true,
       chargedPrice: true,
+      createdAt: true,
     },
   });
 
@@ -64,7 +82,35 @@ export async function PATCH(
     return NextResponse.json({ error: "Lavado no encontrado." }, { status: 404 });
   }
 
-  const body = await request.json().catch(() => ({}));
+  if (isDetailsUpdate) {
+    const parsed = updateDetailsSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Revisa la fecha, la forma de pago y los comentarios (máximo 2000 caracteres)." },
+        { status: 400 },
+      );
+    }
+
+    const { serviceDate, paymentType, notes } = parsed.data;
+    const createdAt = new Date(wash.createdAt);
+    if (serviceDate) {
+      const [year, month, day] = serviceDate.split("-").map(Number);
+      // The server runs in America/Mexico_City; retain the service's local time.
+      createdAt.setFullYear(year, month - 1, day);
+    }
+    const updated = await prisma.wash.updateMany({
+      where: { id: wash.id, deletedAt: null },
+      data: {
+        ...(serviceDate !== undefined ? { createdAt } : {}),
+        ...(paymentType !== undefined ? { paymentType } : {}),
+        ...(notes !== undefined ? { notes: notes || null } : {}),
+      },
+    });
+    if (updated.count === 0) {
+      return NextResponse.json({ error: "Lavado no encontrado." }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  }
 
   // Assigning a different user to the service
   if (body && Object.prototype.hasOwnProperty.call(body, "assignToId")) {

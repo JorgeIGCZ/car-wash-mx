@@ -19,6 +19,8 @@ del catalogo, con foco en un flujo de registro rapido para los encargados.
 - Fotografias privadas por lavado (hasta 6), almacenadas en Cloudflare R2.
 - Historial por dia, semana, mes o rango de fechas; historial global
   filtrable por usuario en Administracion.
+- Edicion de fecha, forma de pago y comentarios de servicios desde el
+  historial para administradores y administrativos.
 - Comisiones por usuario, paquete y vehiculo (porcentaje o monto fijo), con
   calculo de ganancia neta e historico conservado aunque cambien las reglas.
 - Egresos operativos administrables, con impacto en ganancia neta y detalle
@@ -56,8 +58,9 @@ del catalogo, con foco en un flujo de registro rapido para los encargados.
 - `/register`: registro de lavados (flujo principal para encargados).
 - `/history`: historial de lavados propio o global segun rol.
 - `/personnel`: gestion de personal.
-- `/admin`: catalogo, precios, comisiones, usuarios (solo ADMIN puede editar;
-  ADMINISTRATIVE tiene acceso de solo consulta al historial/comisiones).
+- `/admin`: catalogo, precios, comisiones, usuarios (solo ADMIN puede editar
+  configuracion; ADMINISTRATIVE consulta historial/comisiones y puede editar
+  fecha, forma de pago y comentarios de servicios).
 - `/change-password`: cambio obligatorio de contrasena en primer acceso.
 
 ## Comandos principales

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
 import { PhotoLightbox, type LightboxPhoto } from "@/components/PhotoLightbox";
+import { WashDetailsEditor } from "@/components/WashDetailsEditor";
 import { formatMoney, formatPaymentType } from "@/lib/format";
 import type { AppUser, ProfitDetail, WashRecord } from "@/types/domain";
 
@@ -55,6 +56,7 @@ type WashHistoryProps = {
   canDelete?: boolean;
   canEditCommissions?: boolean;
   canEditPrices?: boolean;
+  canEditDetails?: boolean;
 };
 
 type WashCommissionEntry = WashRecord["commissions"][number];
@@ -82,6 +84,7 @@ export function WashHistory({
   canDelete = false,
   canEditCommissions = false,
   canEditPrices = false,
+  canEditDetails = false,
 }: WashHistoryProps) {
   const [period, setPeriod] = useState<Period>("TODAY");
   const [from, setFrom] = useState("");
@@ -108,6 +111,7 @@ export function WashHistory({
     null,
   );
   const [priceError, setPriceError] = useState("");
+  const [detailsMessage, setDetailsMessage] = useState("");
   const [priceEdit, setPriceEdit] = useState<PriceEditState | null>(null);
   const [savingPriceId, setSavingPriceId] = useState<number | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
@@ -465,6 +469,7 @@ export function WashHistory({
       )}
 
       <section className={`history-list ${embedded ? "admin-history-list" : ""}`}>
+        {detailsMessage && <p className="history-details-message" role="status">{detailsMessage}</p>}
         {(deleteError || commissionError || priceError) && (
           <div className="history-alert">
             <AlertCircle size={17} />
@@ -527,6 +532,7 @@ export function WashHistory({
                   {new Intl.DateTimeFormat("es-MX", {
                     dateStyle: "medium",
                     timeStyle: "short",
+                    timeZone: "America/Mexico_City",
                   }).format(new Date(wash.createdAt))}
                 </span>
                 <span>
@@ -587,6 +593,17 @@ export function WashHistory({
                     </p>
                   )}
                 </div>
+              )}
+              {canEditDetails && (
+                <WashDetailsEditor
+                  wash={wash}
+                  onSaved={async (dateChanged) => {
+                    setDetailsMessage(dateChanged
+                      ? `Servicio #${wash.id} actualizado. Se mostrará en el periodo de la nueva fecha.`
+                      : `Servicio #${wash.id} actualizado.`);
+                    await load();
+                  }}
+                />
               )}
               {wash.photos.some((photo) => photo.url) && (
                 <div className="record-photos">

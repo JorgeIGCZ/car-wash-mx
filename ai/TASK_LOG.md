@@ -13,6 +13,23 @@
 
 ## Hecho
 
+- 2026-09-29: Se agrego edicion de detalles de servicios ya registrados.
+  - ADMIN y ADMINISTRATIVE pueden cambiar fecha, forma de pago y comentarios
+    mediante "Editar servicio" en historial administrativo y personal.
+  - La fecha conserva la hora local y mueve el servicio y sus totales al
+    periodo correspondiente; los comentarios pueden agregarse o borrarse.
+  - La API valida fechas reales, tipo de pago y limite de 2000 caracteres;
+    solo actualiza los campos enviados y rechaza servicios eliminados.
+    Precios, comisiones, reasignacion y eliminacion siguen exclusivos de ADMIN.
+  - Validacion: npm run lint, npx tsc --noEmit y npm run build pasaron.
+    Build ejecutado en copia temporal sin .env.production, con MySQL aislado.
+    40 casos de API pasaron con datos ficticios: permisos de los tres roles,
+    fechas invalidas/bisiestas, cambio de mes y hora local cerca de medianoche,
+    campos protegidos, borrado de comentarios, servicios eliminados y totales.
+  - Revision en navegador: guardado de pago/comentarios y fecha como
+    ADMINISTRATIVE, traslado entre periodos, cancelacion y consulta de EMPLOYEE.
+    No se requirieron cambios de schema ni migraciones nuevas.
+
 - 2026-08-17: Se actualizaron dependencias vulnerables sin cambiar de major.
   - Next y `eslint-config-next` quedaron en 15.5.x, manteniendo Next 15 y
     evitando migrar a Next 16.

@@ -76,6 +76,13 @@
 
 ### UX
 
+- `ADMIN` y `ADMINISTRATIVE` pueden editar fecha, forma de pago y comentarios
+  de servicios desde el historial. La fecha operativa sigue siendo
+  `Wash.createdAt`: `serviceDate` recibe YYYY-MM-DD y conserva la hora local
+  del servicio (servidor con TZ=America/Mexico_City). Cambiarla mueve ingresos
+  y comisiones al nuevo periodo. El editor envia solo campos modificados;
+  precios, comisiones, reasignacion y eliminacion siguen limitados a ADMIN.
+
 - El flujo de `/register` es el camino principal de uso diario para los
   encargados: mantenerlo corto y evitar pasos o explicaciones adicionales
   antes de completar el registro.

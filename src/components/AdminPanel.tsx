@@ -260,6 +260,7 @@ export function AdminPanel() {
           canDelete={canEdit}
           canEditCommissions={canEdit}
           canEditPrices={canEdit}
+          canEditDetails={bootstrap.user.role === "ADMIN" || bootstrap.user.role === "ADMINISTRATIVE"}
         />
       )}
       {tab === "EXPENSES" && (

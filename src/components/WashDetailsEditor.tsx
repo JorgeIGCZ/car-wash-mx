@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
-import { Pencil } from "lucide-react";
-import type { PaymentType, WashRecord } from "@/types/domain";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Check, Pencil, X } from "lucide-react";
+import type { WashRecord } from "@/types/domain";
 
 function serviceDateInput(value: string) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -15,22 +15,33 @@ function serviceDateInput(value: string) {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
-export function WashDetailsEditor({ wash, onSaved }: {
+type EditableField = "serviceDate" | "paymentType" | "notes";
+
+const fieldLabels: Record<EditableField, string> = {
+  serviceDate: "fecha del servicio",
+  paymentType: "forma de pago",
+  notes: "comentarios",
+};
+
+export function WashDetailsEditor({ wash, field, canEdit, children, onSaved }: {
   wash: WashRecord;
+  field: EditableField;
+  canEdit: boolean;
+  children: ReactNode;
   onSaved: (dateChanged: boolean) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
-  const [serviceDate, setServiceDate] = useState("");
-  const [paymentType, setPaymentType] = useState<PaymentType>("CASH");
-  const [notes, setNotes] = useState("");
+  const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const label = fieldLabels[field];
+  const currentValue = field === "serviceDate"
+    ? serviceDateInput(wash.createdAt)
+    : field === "paymentType" ? wash.paymentType : wash.notes ?? "";
 
   function startEditing() {
-    setServiceDate(serviceDateInput(wash.createdAt));
-    setPaymentType(wash.paymentType);
-    setNotes(wash.notes ?? "");
+    setDraft(currentValue);
     setError("");
     setEditing(true);
   }
@@ -39,16 +50,12 @@ export function WashDetailsEditor({ wash, onSaved }: {
     event.preventDefault();
     if (savingRef.current) return;
 
-    const dateChanged = serviceDate !== serviceDateInput(wash.createdAt);
-    const patch = {
-      ...(dateChanged ? { serviceDate } : {}),
-      ...(paymentType !== wash.paymentType ? { paymentType } : {}),
-      ...(notes.trim() !== (wash.notes ?? "") ? { notes: notes.trim() || null } : {}),
-    };
-    if (Object.keys(patch).length === 0) {
+    const value = field === "notes" ? draft.trim() : draft;
+    if (value === currentValue) {
       setEditing(false);
       return;
     }
+    const patch = { [field]: field === "notes" ? value || null : value };
 
     savingRef.current = true;
     setSaving(true);
@@ -66,7 +73,7 @@ export function WashDetailsEditor({ wash, onSaved }: {
       }
       setEditing(false);
       try {
-        await onSaved(dateChanged);
+        await onSaved(field === "serviceDate");
       } catch {
         setError("El servicio se guardó. Actualiza el historial para ver los cambios.");
       }
@@ -78,43 +85,48 @@ export function WashDetailsEditor({ wash, onSaved }: {
     }
   }
 
+  if (!canEdit) return <>{children}</>;
+
   return (
-    <div className="wash-details-editor">
+    <div className={`wash-detail-editor ${field === "notes" ? "wash-detail-notes" : ""}`}>
       {editing ? (
-        <form className="wash-details-form" onSubmit={save} aria-label={`Editar servicio #${wash.id}`}>
-          <label>
-            Fecha del servicio
-            <input type="date" required min="1000-01-01" max="9999-12-31" value={serviceDate}
-              disabled={saving} onChange={(event) => setServiceDate(event.target.value)} />
-          </label>
-          <label>
-            Forma de pago
-            <select value={paymentType} disabled={saving}
-              onChange={(event) => setPaymentType(event.target.value as PaymentType)}>
+        <form className="wash-detail-form" onSubmit={save} aria-label={`Editar ${label}`}>
+          {field === "serviceDate" && (
+            <input type="date" aria-label="Fecha del servicio" required
+              min="1000-01-01" max="9999-12-31" value={draft} disabled={saving}
+              onChange={(event) => setDraft(event.target.value)} />
+          )}
+          {field === "paymentType" && (
+            <select aria-label="Forma de pago" value={draft} disabled={saving}
+              onChange={(event) => setDraft(event.target.value)}>
               <option value="CASH">Efectivo</option>
               <option value="CARD">Tarjeta</option>
               <option value="TRANSFER">Transferencia</option>
             </select>
-          </label>
-          <label className="wash-details-notes">
-            Comentarios
-            <textarea value={notes} maxLength={2000} rows={3} disabled={saving}
-              placeholder="Agrega observaciones del servicio"
-              onChange={(event) => setNotes(event.target.value)} />
-          </label>
-          <div className="wash-details-actions">
-            <button className="primary-button" type="submit" disabled={saving}>
-              {saving ? "Guardando…" : "Guardar cambios"}
+          )}
+          {field === "notes" && (
+            <textarea aria-label="Comentarios" value={draft} maxLength={2000}
+              rows={3} disabled={saving} placeholder="Agrega observaciones del servicio"
+              onChange={(event) => setDraft(event.target.value)} />
+          )}
+          <div className="price-edit-actions">
+            <button type="submit" title={`Guardar ${label}`} aria-label={`Guardar ${label}`} disabled={saving}>
+              <Check size={14} />
             </button>
-            <button className="secondary-button" type="button" disabled={saving}
-              onClick={() => { setEditing(false); setError(""); }}>Cancelar</button>
+            <button type="button" title="Cancelar" aria-label={`Cancelar edición de ${label}`} disabled={saving}
+              onClick={() => { setEditing(false); setError(""); }}>
+              <X size={14} />
+            </button>
           </div>
         </form>
       ) : (
-        <button type="button" className="secondary-button" onClick={startEditing} disabled={saving}
-          aria-label={`Editar servicio #${wash.id}`}>
-          <Pencil size={15} /> Editar servicio
-        </button>
+        <div className="wash-detail-value">
+          {children}
+          <button type="button" className="price-edit-button" onClick={startEditing} disabled={saving}
+            title={`Editar ${label}`} aria-label={`Editar ${label}`}>
+            <Pencil size={13} />
+          </button>
+        </div>
       )}
       {error && <p className="history-alert" role="alert">{error}</p>}
     </div>

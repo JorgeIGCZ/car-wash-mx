@@ -76,6 +76,11 @@
 
 ### UX
 
+- En historial, mantener edicion inline por campo con icono de lapiz junto
+  al valor y botones de check/X para guardar/cancelar, consistente con
+  cantidad y comisiones. Fecha, pago y comentarios usan ese mismo patron;
+  evitar un boton general "Editar servicio" con formulario separado.
+
 - `ADMIN` y `ADMINISTRATIVE` pueden editar fecha, forma de pago y comentarios
   de servicios desde el historial. La fecha operativa sigue siendo
   `Wash.createdAt`: `serviceDate` recibe YYYY-MM-DD y conserva la hora local

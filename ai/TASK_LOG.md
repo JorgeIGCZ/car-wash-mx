@@ -13,6 +13,16 @@
 
 ## Hecho
 
+- 2026-09-30: Se homologo la edicion de fecha, pago y comentarios con los
+  lapices de cantidad y comisiones.
+  - Cada campo se edita en su lugar con lapiz, check para guardar y X para
+    cancelar. Se retiro el boton general y el formulario de tres campos.
+  - Los comentarios vacios muestran "Sin comentarios" y su lapiz para
+    permitir agregar observaciones. Cada guardado envia solo su campo.
+  - Validacion: npm run lint y npm run build pasaron (build en copia
+    temporal sin .env.production y con MySQL aislado). Revision en navegador
+    del guardado individual, traslado de fecha entre periodos y cancelacion.
+
 - 2026-09-29: Se agrego edicion de detalles de servicios ya registrados.
   - ADMIN y ADMINISTRATIVE pueden cambiar fecha, forma de pago y comentarios
     mediante "Editar servicio" en historial administrativo y personal.

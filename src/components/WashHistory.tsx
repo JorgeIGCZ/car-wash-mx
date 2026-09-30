@@ -309,6 +309,13 @@ export function WashHistory({
     await load();
   }
 
+  async function detailsSaved(washId: number, dateChanged: boolean) {
+    setDetailsMessage(dateChanged
+      ? `Servicio #${washId} actualizado. Se mostrará en el periodo de la nueva fecha.`
+      : `Servicio #${washId} actualizado.`);
+    await load();
+  }
+
   function startPriceEdit(wash: WashRecord) {
     setPriceError("");
     setCommissionEdit(null);
@@ -527,14 +534,17 @@ export function WashHistory({
                 )}
               </div>
               <div className="record-meta">
-                <span>
-                  <CalendarDays size={15} />
-                  {new Intl.DateTimeFormat("es-MX", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                    timeZone: "America/Mexico_City",
-                  }).format(new Date(wash.createdAt))}
-                </span>
+                <WashDetailsEditor wash={wash} field="serviceDate" canEdit={canEditDetails}
+                  onSaved={(dateChanged) => detailsSaved(wash.id, dateChanged)}>
+                  <span>
+                    <CalendarDays size={15} />
+                    {new Intl.DateTimeFormat("es-MX", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: "America/Mexico_City",
+                    }).format(new Date(wash.createdAt))}
+                  </span>
+                </WashDetailsEditor>
                 <span>
                   <Users size={15} />
                   {[
@@ -544,10 +554,13 @@ export function WashHistory({
                     ),
                   ].join(", ")}
                 </span>
-                <span>
-                  <CreditCard size={15} />
-                  {formatPaymentType(wash.paymentType)}
-                </span>
+                <WashDetailsEditor wash={wash} field="paymentType" canEdit={canEditDetails}
+                  onSaved={(dateChanged) => detailsSaved(wash.id, dateChanged)}>
+                  <span>
+                    <CreditCard size={15} />
+                    {formatPaymentType(wash.paymentType)}
+                  </span>
+                </WashDetailsEditor>
               </div>
               {embedded && (
                 <>
@@ -580,30 +593,20 @@ export function WashHistory({
                   />
                 </>
               )}
-              {(wash.customServiceDescription || wash.notes) && (
+              {(wash.customServiceDescription || wash.notes || canEditDetails) && (
                 <div className="record-notes">
                   {wash.customServiceDescription && (
                     <p>
                       <b>Servicio:</b> {wash.customServiceDescription}
                     </p>
                   )}
-                  {wash.notes && (
-                    <p>
-                      <b>Observaciones:</b> {wash.notes}
-                    </p>
+                  {(wash.notes || canEditDetails) && (
+                    <WashDetailsEditor wash={wash} field="notes" canEdit={canEditDetails}
+                      onSaved={(dateChanged) => detailsSaved(wash.id, dateChanged)}>
+                      <p><b>Observaciones:</b> {wash.notes || "Sin comentarios"}</p>
+                    </WashDetailsEditor>
                   )}
                 </div>
-              )}
-              {canEditDetails && (
-                <WashDetailsEditor
-                  wash={wash}
-                  onSaved={async (dateChanged) => {
-                    setDetailsMessage(dateChanged
-                      ? `Servicio #${wash.id} actualizado. Se mostrará en el periodo de la nueva fecha.`
-                      : `Servicio #${wash.id} actualizado.`);
-                    await load();
-                  }}
-                />
               )}
               {wash.photos.some((photo) => photo.url) && (
                 <div className="record-photos">

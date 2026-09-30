@@ -1551,6 +1551,7 @@ label em {
 }
 
 .history-details-message {
+  grid-column: 1 / -1;
   padding: 12px;
   border-radius: 12px;
   background: #edf8ef;
@@ -1558,42 +1559,57 @@ label em {
   font-size: 0.85rem;
 }
 
-.wash-details-editor {
-  grid-column: 1 / -1;
+.wash-detail-editor {
   min-width: 0;
+  max-width: 100%;
   display: grid;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 6px;
 }
 
-.wash-details-editor > button {
-  justify-self: start;
-}
-
-.wash-details-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: 14px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface);
-}
-
-.wash-details-form label,
-.wash-details-form input {
-  min-width: 0;
-}
-
-.wash-details-notes,
-.wash-details-actions {
-  grid-column: 1 / -1;
-}
-
-.wash-details-actions {
+.wash-detail-value {
   display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wash-detail-value > :first-child {
+  min-width: 0;
+}
+
+.wash-detail-notes .wash-detail-value {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.wash-detail-form {
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wash-detail-form input,
+.wash-detail-form select {
+  width: 165px;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 0.74rem;
+}
+
+.wash-detail-form textarea {
+  min-width: 0;
+  min-height: 80px;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.wash-detail-notes .price-edit-actions {
+  margin-left: auto;
 }
 
 .record-financials {

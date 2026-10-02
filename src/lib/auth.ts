@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? "turbo_wash_session";
 const SESSION_DAYS = 14;
-type AppRole = "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
+type AppRole = "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE" | "COLLABORATOR";
 
 export function canAccessAdministration(role: AppRole) {
   return role === "ADMIN" || role === "ADMINISTRATIVE";

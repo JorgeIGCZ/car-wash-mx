@@ -11,14 +11,14 @@ const createSchema = z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().email(),
   password: z.string().min(10).max(100),
-  role: z.enum(["ADMIN", "ADMINISTRATIVE", "EMPLOYEE"]).default("EMPLOYEE"),
+  role: z.enum(["ADMIN", "ADMINISTRATIVE", "EMPLOYEE", "COLLABORATOR"]).default("EMPLOYEE"),
   isPartner: z.boolean().default(false),
   partnerSharePercentage: z.coerce.number().positive().max(100).optional().nullable(),
 });
 const updateSchema = z.object({
   id: z.number().int().positive(),
   name: z.string().trim().min(2).max(100).optional(),
-  role: z.enum(["ADMIN", "ADMINISTRATIVE", "EMPLOYEE"]).optional(),
+  role: z.enum(["ADMIN", "ADMINISTRATIVE", "EMPLOYEE", "COLLABORATOR"]).optional(),
   active: z.boolean().optional(),
   password: z.string().min(10).max(100).optional(),
   isPartner: z.boolean().optional(),
@@ -35,7 +35,7 @@ function normalizePartnerData({
   isPartner,
   partnerSharePercentage,
 }: {
-  role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
+  role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE" | "COLLABORATOR";
   isPartner: boolean;
   partnerSharePercentage?: number | null;
 }) {

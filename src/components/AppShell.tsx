@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatUserRole } from "@/lib/format";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
@@ -14,7 +15,7 @@ import {
 type AppShellProps = {
   user: {
     name: string;
-    role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
+    role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE" | "COLLABORATOR";
   };
   children: React.ReactNode;
 };
@@ -65,11 +66,7 @@ export function AppShell({ user, children }: AppShellProps) {
         <div className="sidebar-user">
           <span>{user.name}</span>
           <small>
-            {user.role === "ADMIN"
-              ? "Administrador"
-              : user.role === "ADMINISTRATIVE"
-                ? "Administrativo"
-                : "Encargado"}
+            {formatUserRole(user.role)}
           </small>
           <form action="/api/auth/logout" method="post">
             <button type="submit">

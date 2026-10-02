@@ -1,3 +1,15 @@
+import type { AppUser } from "@/types/domain";
+
+export function formatUserRole(role: AppUser["role"]) {
+  const labels = {
+    ADMIN: "Administrador",
+    ADMINISTRATIVE: "Administrativo",
+    EMPLOYEE: "Encargado",
+    COLLABORATOR: "Colaborador",
+  };
+  return labels[role];
+}
+
 export function formatMoney(value: number | string) {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",

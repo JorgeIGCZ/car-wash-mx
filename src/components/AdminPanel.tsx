@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
 import { WashHistory } from "@/components/WashHistory";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatUserRole } from "@/lib/format";
 import type {
   BootstrapData,
   CommissionRuleOption,
@@ -45,7 +45,7 @@ type AdminUser = {
   id: number;
   name: string;
   email: string;
-  role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
+  role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE" | "COLLABORATOR";
   isPartner: boolean;
   partnerSharePercentage: number | null;
   active: boolean;
@@ -1323,7 +1323,7 @@ function CommissionEditor({
             {users.map((user) => (
               <option value={user.id} key={user.id}>
                 {user.name} ·{" "}
-                {user.role === "ADMIN" ? "Administrador" : "Encargado"}
+                {formatUserRole(user.role)}
               </option>
             ))}
           </select>
@@ -1902,6 +1902,7 @@ function UserEditor({
               </div>
               <select value={user.role} onChange={(e) => void update({ id: user.id, role: e.target.value })}>
                 <option value="EMPLOYEE">Encargado</option>
+                <option value="COLLABORATOR">Colaborador</option>
                 <option value="ADMINISTRATIVE">Administrativo</option>
                 <option value="ADMIN">Administrador</option>
               </select>
@@ -1943,6 +1944,7 @@ function UserEditor({
               }}
             >
               <option value="EMPLOYEE">Encargado</option>
+                <option value="COLLABORATOR">Colaborador</option>
               <option value="ADMINISTRATIVE">Administrativo</option>
               <option value="ADMIN">Administrador</option>
             </select>

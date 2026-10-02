@@ -9,7 +9,15 @@
 
 ## En progreso
 
-- Ninguna
+- 2026-10-01: Nuevo rol COLLABORATOR / Colaborador.
+  - Preparados enum, migracion generada con npm run db:migrate en MySQL
+    temporal, tipos, validacion de Personal y etiquetas/selector de rol.
+  - Pendiente definir con el usuario si tendra acceso, consulta personal o
+    registro de servicios; despues completar permisos, participantes y
+    comisiones, y verificar pantallas y flujos con los permisos definitivos.
+  - npm run lint y npm run build pasaron para esta base preliminar; build
+    ejecutado en copia aislada sin .env.production. Migracion aplicada solo
+    en la base temporal de pruebas. Trabajo funcional pendiente de definir permisos.
 
 ## Hecho
 

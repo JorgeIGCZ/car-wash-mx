@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatUserRole } from "@/lib/format";
 import { KeyRound, LogOut } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
 import { requireUser } from "@/lib/auth";
@@ -17,11 +18,7 @@ export default async function PersonnelPage() {
             <strong>{currentUser.name}</strong>
             <span>{currentUser.email}</span>
             <small>
-              {currentUser.role === "ADMIN"
-                ? "Administrador"
-                : currentUser.role === "ADMINISTRATIVE"
-                  ? "Administrativo"
-                  : "Encargado"}
+              {formatUserRole(currentUser.role)}
             </small>
           </div>
         </div>

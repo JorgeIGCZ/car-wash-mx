@@ -2,7 +2,7 @@ export type AppUser = {
   id: number;
   name: string;
   email: string;
-  role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE";
+  role: "ADMIN" | "ADMINISTRATIVE" | "EMPLOYEE" | "COLLABORATOR";
   isPartner?: boolean;
   partnerSharePercentage?: number | null;
   active: boolean;

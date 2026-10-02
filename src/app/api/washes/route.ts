@@ -349,7 +349,7 @@ export async function POST(request: Request) {
       where: {
         id: parsed.data.createdById,
         active: true,
-        role: { in: ["ADMIN", "EMPLOYEE"] },
+        role: { in: ["ADMIN", "EMPLOYEE", "COLLABORATOR"] },
       },
       select: { id: true },
     });
@@ -417,7 +417,7 @@ export async function POST(request: Request) {
     where: {
       id: { in: [...new Set(parsed.data.participantIds)] },
       active: true,
-      role: { in: ["ADMIN", "EMPLOYEE"] },
+      role: { in: ["ADMIN", "EMPLOYEE", "COLLABORATOR"] },
     },
     select: { id: true },
   });

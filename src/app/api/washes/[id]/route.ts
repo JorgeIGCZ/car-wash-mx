@@ -208,7 +208,7 @@ export async function PATCH(
     where: {
       id: parsed.data.userId,
       active: true,
-      role: { in: ["ADMIN", "EMPLOYEE"] },
+      role: { in: ["ADMIN", "EMPLOYEE", "COLLABORATOR"] },
     },
     select: { id: true },
   });

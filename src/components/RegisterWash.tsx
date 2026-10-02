@@ -32,7 +32,7 @@ import {
   Wind,
   X,
 } from "lucide-react";
-import { formatMoney, formatPaymentType } from "@/lib/format";
+import { formatMoney, formatPaymentType, formatUserRole } from "@/lib/format";
 import type {
   BootstrapData,
   PaymentType,
@@ -215,7 +215,8 @@ export function RegisterWash() {
     () =>
       data?.users.filter(
         (user) =>
-          user.active && (user.role === "ADMIN" || user.role === "EMPLOYEE"),
+          user.active &&
+          (user.role === "ADMIN" || user.role === "EMPLOYEE" || user.role === "COLLABORATOR"),
       ) ?? [],
     [data],
   );
@@ -591,7 +592,7 @@ export function RegisterWash() {
               <option value="">Selecciona un responsable</option>
               {registrableUsers.map((user) => (
                 <option value={user.id} key={user.id}>
-                  {user.name} · {user.role === "ADMIN" ? "Administrador" : "Encargado"}
+                  {user.name} · {formatUserRole(user.role)}
                 </option>
               ))}
             </select>
@@ -777,13 +778,8 @@ export function RegisterWash() {
               </div>
             </div>
             <div className="chip-list">
-              {data.users
-                .filter(
-                  (user) =>
-                    user.id !== washOwnerId &&
-                    user.active &&
-                    (user.role === "ADMIN" || user.role === "EMPLOYEE"),
-                )
+              {registrableUsers
+                .filter((user) => user.id !== washOwnerId)
                 .map((user) => {
                   const selected = participants.includes(user.id);
                   return (

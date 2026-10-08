@@ -153,3 +153,9 @@
 - Los controles de captura necesitan tipografia propia y anchos adaptativos:
   el estilo global de label convierte Galeria a mayusculas y los botones
   generales resultan demasiado grandes para zonas de evidencia estrechas.
+
+- Tras una interrupcion, videoId no significa video aceptado: permitir editar
+  notas en el borrador y conservar requestKey. beginUpload actualiza la nota
+  solo mientras UPLOADING y comprueba zona/tipo/tamano para el mismo intento.
+- R2 requiere CORS para los PUT directos del navegador; lifecycle no lo configura.
+  El usuario confirmo que no habia agregado CORS al bucket (2026-10-08).

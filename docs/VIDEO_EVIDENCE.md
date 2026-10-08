@@ -95,6 +95,36 @@ la migración se ejecuta explícitamente antes de arrancar la aplicación nueva.
 
 Variables nuevas:
 
+### CORS manual en el panel de Cloudflare
+
+Las reglas de eliminacion no habilitan las subidas desde el navegador. En R2,
+seleccionar el bucket, Settings → CORS Policy y agregar esta regla para el
+dominio actual de produccion. Conservar otras reglas existentes si las hay:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://seashell-coyote-471453.hostingersite.com"],
+    "AllowedMethods": ["GET", "HEAD", "PUT"],
+    "AllowedHeaders": ["content-type", "range", "x-amz-*"],
+    "ExposeHeaders": ["ETag", "Content-Length", "Content-Range"],
+    "MaxAgeSeconds": 300
+  }
+]
+```
+
+No agregar `/admin` al origen ni habilitar acceso publico al bucket. Si cambia
+el dominio, actualizar AllowedOrigins. Documentacion oficial:
+https://developers.cloudflare.com/r2/buckets/cors/
+
+Reintentos: conservar requestKey para el mismo archivo; antes de confirmar,
+se puede corregir la observacion de una carga UPLOADING sin duplicar registros.
+No se modifican notas de videos ya enviados a procesamiento. Prueba focalizada:
+`node --env-file=.env --import tsx tests/evidence-retry-integration.ts`, solo con
+MySQL desechable `turbo_evidence_test` y almacenamiento simulado local.
+
+Variables de entorno:
+
 ```
 EVIDENCE_ENABLED=false
 EVIDENCE_ALLOWED_ORIGINS=https://dominio-real-de-la-app

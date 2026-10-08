@@ -30,6 +30,22 @@
 
 ## Hecho
 
+- 2026-10-08: Correccion de observaciones/reintentos y confirmacion de videos.
+  - Campo editable tras fallar la carga; mismo requestKey conserva intento y
+    beginUpload actualiza nota solo antes del procesamiento, con validacion
+    de zona/tipo/tamano. No duplica registros ni altera videos aceptados.
+  - Confirmacion separada en bloque con padding, botones alineados y errores
+    espaciados; textarea de 16px, texto normal, sin mayusculas heredadas.
+  - Usuario confirmo ausencia de CORS en R2: documentada regla del dominio
+    Hostinger para configurar en Cloudflare. No aplicada a produccion.
+  - Pasaron lint/build aislado, 3 pruebas unitarias y 7 verificaciones de
+    reintentos con MySQL ficticio. Navegador movil: interrupcion simulada,
+    edicion de nota, reintento del mismo archivo y confirmacion QUEUED con
+    la nota corregida. R2 real/telefono fisico pendientes tras configurar CORS.
+  - Correcciones, prueba de regresion y guia CORS incluidas en el commit/push
+    solicitado por el usuario. Revision de produccion: procesador sin conexion
+    y sin limpieza registrada; falta su puesta en marcha y confirmar despliegue.
+
 - 2026-10-07: Se ajustaron los botones de captura de evidencia: texto de 13px
   y peso moderado, iconos sin encogerse, Galeria sin mayusculas forzadas,
   botones de ancho completo y altura minima de 44px. Interior/exterior se

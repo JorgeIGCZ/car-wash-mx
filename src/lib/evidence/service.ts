@@ -71,6 +71,10 @@ export async function beginUpload(washId: number, user: User, body: unknown) {
     const existing = await tx.evidenceVideo.findUnique({ where: { washId_requestKey: { washId, requestKey: input.requestKey } } });
     if (existing) {
       if (existing.uploadedById !== user.id || !existing.activeSlot) throw new EvidenceError(409, "Esta carga ya fue sustituida.");
+      if (existing.zone !== input.zone || existing.contentType !== input.contentType || existing.expectedBytes !== input.byteSize) throw new EvidenceError(409, "Selecciona de nuevo el video para iniciar otra carga.");
+      if (existing.status === "UPLOADING") {
+        return tx.evidenceVideo.update({ where: { id: existing.id }, data: { note: input.note || null } });
+      }
       return existing;
     }
     const accepted = await tx.evidenceVideo.findFirst({ where: { washId, zone: input.zone, acceptedAt: { not: null } } });

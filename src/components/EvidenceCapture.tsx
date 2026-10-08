@@ -97,7 +97,7 @@ export function EvidenceCapture({ label, disabled, draft, onChange, onRecording 
       </div>
     </>}
     {draft && <><small>{(draft.file.size / 1024 / 1024).toFixed(1)} MB · Revisa el video antes de subir.</small>
-      <label>Observación visible para el cliente<textarea maxLength={1000} value={draft.note} disabled={disabled || recording || Boolean(draft.videoId)} onChange={e => onChange({ ...draft, note: e.target.value, requestKey: crypto.randomUUID(), videoId: undefined })} placeholder="Ej. Mancha previa en asiento trasero" /></label>
+      <label>Observación visible para el cliente<textarea maxLength={1000} value={draft.note} disabled={disabled || recording} onChange={e => onChange({ ...draft, note: e.target.value })} placeholder="Ej. Mancha previa en asiento trasero" /></label>
       <a href={preview ?? undefined} download={draft.file.name}>Guardar una copia en este teléfono</a>
     </>}
     {error && <p role="alert" className="evidence-error">{error}</p>}

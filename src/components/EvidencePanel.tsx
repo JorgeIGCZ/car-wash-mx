@@ -55,7 +55,9 @@ export function EvidencePanel({ washId, onBusyChange, onStatusChange, showHeadin
         }
       };
       request.onload = () => request.status >= 200 && request.status < 300 ? resolve() : reject(new Error("La subida falló. Conserva el video y reintenta."));
-      request.onerror = request.ontimeout = request.onabort = () => reject(new Error("La conexión se interrumpió. Reintenta con el video seleccionado."));
+      request.onerror = () => reject(new Error("No se pudo conectar con el almacenamiento de videos. Revisa la conexión y que R2 permita subidas desde este sitio (CORS). El video seleccionado se conserva para reintentar."));
+      request.ontimeout = () => reject(new Error("La subida tardó demasiado. Reintenta con mejor conexión; el video seleccionado se conserva."));
+      request.onabort = () => reject(new Error("La subida se canceló. Reintenta con el video seleccionado."));
       request.send(draft.file);
     });
   }
@@ -132,9 +134,11 @@ export function EvidencePanel({ washId, onBusyChange, onStatusChange, showHeadin
         <small>{readyCount} de 2 videos listos. El estado se actualiza automáticamente; puedes continuar desde el historial.</small>
       </>}
     </div>}
-    {Object.keys(drafts).length > 0 && <button type="button" className="primary-button" disabled={busy || Boolean(recordingZone) || !data.enabled} onClick={() => void upload()}><Upload size={18}/>{busy ? "Subiendo…" : "Confirmar y subir videos"}</button>}
+    {(Object.keys(drafts).length > 0 || error) && <div className="evidence-upload-actions">
+    {Object.keys(drafts).length > 0 && <><p>Revisa los videos y las observaciones antes de confirmar.</p><button type="button" className="primary-button" disabled={busy || Boolean(recordingZone) || !data.enabled} onClick={() => void upload()}><Upload size={18}/>{busy ? "Subiendo…" : error ? "Reintentar subida" : "Confirmar y subir videos"}</button></>}
     {error && data.videos.some(v => ["FAILED", "EXPIRED", "SUPERSEDED"].includes(v.status) && drafts[v.zone]) && <button type="button" className="secondary-button" disabled={busy} onClick={() => { setDrafts(current => Object.fromEntries(Object.entries(current).map(([zone, draft]) => [zone, { ...draft, requestKey: crypto.randomUUID(), videoId: undefined }]))); setError(""); }}>Preparar un nuevo intento con los mismos videos</button>}
     {error && <p role="alert" className="evidence-error">{error}</p>}
+    </div>}
     <EvidencePhotos photos={data.photos} base={base} canEdit={data.canManagePhotos} refresh={refresh}/>
     <div className={`evidence-client-share${data.status === "READY" ? " evidence-client-share-ready" : ""}`}>
       <div className="evidence-client-heading">{data.status === "READY" ? <CheckCircle2 size={20}/> : <MessageCircle size={20}/>}<strong>{data.status === "READY" ? "Evidencia lista para el cliente" : "Enlace para el cliente"}</strong></div>

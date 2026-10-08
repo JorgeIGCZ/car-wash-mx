@@ -4157,6 +4157,13 @@ label em {
 .evidence-panel video, .public-evidence video { display: block; width: 100%; max-height: 380px; border-radius: 10px; background: #050505; margin-bottom: 10px; }
 .evidence-capture label:not(.evidence-file) { display: grid; gap: 7px; margin: 12px 0; font-size: 13px; }
 .evidence-capture textarea { width: 100%; min-height: 76px; resize: vertical; }
+.evidence-capture label:not(.evidence-file) { font-weight: 600; letter-spacing: normal; text-transform: none; }
+.evidence-capture textarea { font-size: 16px; font-weight: 400; line-height: 1.5; }
+.evidence-upload-actions { display: grid; gap: 14px; padding: 16px; margin: 20px 0 24px; border: 1px solid var(--line); border-radius: 12px; background: #f8f9fa; }
+.evidence-upload-actions > p { font-size: 0.8rem; color: var(--muted); }
+.evidence-upload-actions .primary-button, .evidence-upload-actions .secondary-button { width: 100%; min-height: 44px; padding: 12px; font-size: 0.8125rem; font-weight: 650; line-height: 1.4; }
+.evidence-upload-actions svg { flex-shrink: 0; }
+.evidence-upload-actions .evidence-error { padding: 12px; border-radius: 10px; background: #fff0f0; overflow-wrap: anywhere; }
 .evidence-file { position: relative; overflow: hidden; cursor: pointer; }
 .evidence-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
 .evidence-hidden { display: none !important; }

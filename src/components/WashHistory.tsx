@@ -25,6 +25,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { EvidenceHistory } from "@/components/EvidencePanel";
 import { PageHero } from "@/components/PageHero";
 import { PhotoLightbox, type LightboxPhoto } from "@/components/PhotoLightbox";
 import { WashDetailsEditor } from "@/components/WashDetailsEditor";
@@ -608,6 +609,7 @@ export function WashHistory({
                   )}
                 </div>
               )}
+              {wash.evidenceRequired && <EvidenceHistory washId={wash.id} status={wash.evidenceStatus ?? "PENDING"} />}
               {wash.photos.some((photo) => photo.url) && (
                 <div className="record-photos">
                   {wash.photos

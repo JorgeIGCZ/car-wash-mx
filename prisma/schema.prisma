@@ -44,6 +44,7 @@ model User {
   active                 Boolean           @default(true)
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
+  evidenceUploads        EvidenceVideo[]
   sessions               Session[]
   washesCreated          Wash[]            @relation("CreatedWashes")
   washesDeleted          Wash[]            @relation("DeletedWashes")
@@ -106,6 +107,11 @@ model ServicePrice {
 
 model Wash {
   id                       Int               @id @default(autoincrement())
+  evidenceRequired         Boolean           @default(false)
+  evidenceToken            String?           @unique @db.VarChar(64)
+  evidenceRevokedAt        DateTime?
+  evidenceVideos           EvidenceVideo[]
+  evidenceEvents           EvidenceEvent[]
   plate                    String?           @db.VarChar(32)
   chargedPrice             Decimal           @db.Decimal(10, 2)
   paymentType              PaymentType       @default(CASH)
@@ -133,6 +139,8 @@ model Wash {
 }
 
 model WashPhoto {
+  clientVisible Boolean @default(false)
+  clientNote    String? @db.VarChar(1000)
   id        Int      @id @default(autoincrement())
   objectKey String   @unique @db.VarChar(512)
   mimeType  String   @db.VarChar(100)
@@ -209,4 +217,81 @@ model AppSetting {
   key       String   @id @db.VarChar(100)
   value     String   @db.VarChar(255)
   updatedAt DateTime @updatedAt
+}
+
+
+enum EvidenceZone {
+  INTERIOR
+  EXTERIOR
+}
+
+enum EvidenceStatus {
+  UPLOADING
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+  EXPIRED
+  SUPERSEDED
+}
+
+model EvidenceVideo {
+  id                String         @id @default(cuid())
+  washId            Int
+  wash              Wash           @relation(fields: [washId], references: [id])
+  zone              EvidenceZone
+  activeSlot        String?        @unique @db.VarChar(64)
+  requestKey        String         @db.VarChar(36)
+  uploadedById      Int
+  uploadedBy        User           @relation(fields: [uploadedById], references: [id])
+  note              String?        @db.VarChar(1000)
+  status            EvidenceStatus @default(UPLOADING)
+  originalKey       String         @unique @db.VarChar(512)
+  processedKey      String?        @unique @db.VarChar(512)
+  contentType       String         @db.VarChar(100)
+  expectedBytes     Int
+  byteSize          Int?
+  durationSeconds   Float?
+  width             Int?
+  height            Int?
+  originalEtag      String?        @db.VarChar(100)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  uploadExpiresAt   DateTime
+  uploadedAt        DateTime?
+  expiresAt         DateTime?
+  acceptedAt        DateTime?
+  attempts          Int            @default(0)
+  nextAttemptAt     DateTime        @default(now())
+  processingOwner   String?        @db.VarChar(64)
+  errorCode         String?        @db.VarChar(64)
+  originalDeletedAt DateTime?
+  processedDeletedAt DateTime?
+  deletedAt         DateTime?
+
+  @@unique([washId, requestKey])
+  @@index([washId, zone])
+  @@index([status, nextAttemptAt])
+  @@index([expiresAt])
+}
+
+model EvidenceEvent {
+  id        Int      @id @default(autoincrement())
+  washId    Int
+  wash      Wash     @relation(fields: [washId], references: [id])
+  videoId   String?  @db.VarChar(64)
+  actorId   Int?
+  action    String   @db.VarChar(64)
+  createdAt DateTime @default(now())
+
+  @@index([washId, createdAt])
+}
+
+model EvidenceWorkerState {
+  id            String   @id @db.VarChar(32)
+  owner         String   @db.VarChar(64)
+  leaseUntil    DateTime
+  heartbeatAt   DateTime
+  lastCleanupAt DateTime?
+  lastError     String?  @db.VarChar(64)
 }

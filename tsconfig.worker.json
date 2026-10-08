@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "worker-dist",
+    "rootDir": "."
+  },
+  "include": ["scripts/evidence-worker.ts", "scripts/evidence-health.ts", "scripts/configure-evidence-r2.ts"],
+  "exclude": ["node_modules", "worker-dist"]
+}

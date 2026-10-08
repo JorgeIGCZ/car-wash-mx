@@ -11,7 +11,13 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:production": "node --env-file=.env.production node_modules/prisma/build/index.js migrate deploy",
     "db:status:production": "node --env-file=.env.production node_modules/prisma/build/index.js migrate status",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "evidence:build": "tsc -p tsconfig.worker.json",
+    "evidence:worker": "node worker-dist/scripts/evidence-worker.js",
+    "evidence:health": "node worker-dist/scripts/evidence-health.js",
+    "evidence:configure-r2": "node worker-dist/scripts/configure-evidence-r2.js",
+    "test:evidence": "node --import tsx --test tests/evidence.test.ts",
+    "test:evidence:integration": "node --import tsx tests/evidence-integration.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

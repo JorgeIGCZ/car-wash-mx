@@ -1,3 +1,4 @@
+import { evidenceEnabled } from "@/lib/evidence/service";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { localDayRange } from "@/lib/format";
@@ -42,6 +43,7 @@ export async function GET() {
     ]);
 
   return NextResponse.json({
+    evidenceEnabled: evidenceEnabled(),
     user: {
       id: user.id,
       name: user.name,

@@ -71,8 +71,9 @@
 
 ### Testing / verificacion
 
-- No hay suite de tests automatizados todavia; la verificacion estandar es
-  `npm run lint` + `npm run build` (ver `ai/RUNBOOK.md`).
+- Evidencia tiene tests de unidad (`npm run test:evidence`) e integracion con
+  MySQL desechable y S3 simulado; ver `docs/VIDEO_EVIDENCE.md`. Ademas ejecutar
+  `npm run lint` + `npm run build` en copia sin `.env.production`.
 
 ### UX
 
@@ -105,3 +106,42 @@
   WhatsApp lo soportan. Las fotos guardadas en R2 son privadas y sus enlaces
   firmados expiran, asi que no deben tratarse como links permanentes para
   compartir.
+
+### Evidencia de recepcion
+
+- `EVIDENCE_ENABLED` apaga nuevas capturas, pero nunca consulta, procesamiento ni
+  limpieza de evidencias existentes. `Wash.evidenceRequired` se fija al crear el
+  servicio; no marcar historicos como pendientes ni cambiarlo con la fecha.
+- `expiresAt` depende de Last-Modified del original confirmado + 10 dias, no de
+  `Wash.createdAt` ni de la fecha del MP4 normalizado. Negar acceso al leer aunque
+  la limpieza este detenida. R2 lifecycle es respaldo por edad del objeto.
+- Mantener videos en `evidence/originals/` y `evidence/videos/`, separados de fotos
+  y sin heredar su cache anual. No mostrar claves, tokens ni URLs firmadas en logs.
+- Worker persistente separado de Next; lease MySQL, reintentos y destinos R2
+  registrados antes del PUT para recuperar caidas. Una sola conversion simultanea.
+- Revocar un enlace invalida nuevas autorizaciones; GET ya emitidos duran hasta
+  60 s. Borrar un servicio inhabilita tambien la evidencia publica.
+- Build de Docker ya no migra: ejecutar migrate deploy en el release antes de
+  arrancar la aplicacion. No desplegar la bandera sin worker, limpieza y CORS.
+
+- MediaRecorder puede producir WebM sin duracion de contenedor. FFprobe debe
+  calcularla con timestamps de paquetes antes de rechazarlo; mantener validacion
+  de la duracion del MP4 normalizado. No confiar en Infinity del navegador.
+- `data-new-gr-c-s-check-loaded` y `data-gr-ext-installed` en errores de hydration
+  provienen de Grammarly modificando el body. Verificar con la extension apagada;
+  no ocultar globalmente errores de hidratacion en layout.tsx.
+
+- La evidencia publica no debe ofrecer instalar la PWA interna. PwaSetup omite
+  /evidencia/* y esa pagina anula manifest/appleWebApp/applicationName heredados.
+- La suite de evidencia usa reloj adelantado para limpiar: correrla siempre en
+  una base desechable distinta de la que el usuario utiliza para probar la UI.
+  Se pueden separar puertos/origen/fixtures mediante variables de prueba.
+
+- En historial, el usuario prefiere evidencia como acordeon integrado con titulo
+  estable, estado y chevron. Evitar "Cerrar evidencia": puede interpretarse como
+  eliminarla; el control solo muestra/oculta el contenido.
+
+- Las fotos para cliente son las mismas WashPhoto, privadas por defecto. Publicar
+  no reinicia createdAt ni elimina objetos; expira solo el acceso publico tras
+  10 dias. Servir por proxy no-store con token/visibilidad/expiry por solicitud:
+  no usar cache Next Image ni heredar la cache anual del objeto original.

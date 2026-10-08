@@ -1,5 +1,7 @@
 "use client";
 
+import { EvidencePanel } from "@/components/EvidencePanel";
+
 import {
   ChangeEvent,
   FormEvent,
@@ -83,6 +85,7 @@ const paymentOptions = [
 
 type WhatsAppSharePayload = {
   washId: number;
+  evidenceRequired: boolean;
   text: string;
   photos: File[];
   photoCount: number;
@@ -177,6 +180,7 @@ export function RegisterWash() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [sharePayload, setSharePayload] = useState<WhatsAppSharePayload | null>(null);
+  const [evidenceBusy, setEvidenceBusy] = useState(false);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
 
   async function load() {
@@ -449,6 +453,7 @@ export function RegisterWash() {
     }
     const result = (await response.json().catch(() => null)) as {
       id?: number;
+      evidenceRequired?: boolean;
       chargedPrice?: number;
       paymentType?: PaymentType;
       error?: string;
@@ -498,6 +503,7 @@ export function RegisterWash() {
       .filter((name): name is string => Boolean(name));
     setSharePayload({
       washId: result.id,
+      evidenceRequired: Boolean(result.evidenceRequired),
       text: buildWashShareText({
         washId: result.id,
         vehicleName: selectedVehicle?.name ?? "No especificado",
@@ -769,6 +775,7 @@ export function RegisterWash() {
             </div>
           </div>
 
+          {category === "INTERIOR" && data.evidenceEnabled && <div className="evidence-register-notice"><strong>Evidencia de recepción</strong><p>Después de registrar podrás grabar o adjuntar un video del interior y otro del exterior. Si falta alguno, el servicio quedará con evidencia pendiente.</p></div>}
           <div className="collaborators">
             <div className="collaborators-title">
               <UserRoundPlus size={20} />
@@ -937,19 +944,22 @@ export function RegisterWash() {
             <div className="whatsapp-dialog-heading">
               <div>
                 <span>Servicio guardado</span>
-                <h2 id="whatsapp-dialog-title">Enviar por WhatsApp</h2>
+                <h2 id="whatsapp-dialog-title">{sharePayload.evidenceRequired ? "Evidencia y resumen" : "Enviar por WhatsApp"}</h2>
                 <p>WhatsApp abrirá tus chats para elegir contacto o grupo.</p>
               </div>
               <button
                 type="button"
                 className="icon-button"
                 aria-label="Cerrar"
+                disabled={evidenceBusy}
                 onClick={() => setSharePayload(null)}
               >
                 <X size={18} />
               </button>
             </div>
 
+            {sharePayload.evidenceRequired && <EvidencePanel washId={sharePayload.washId} onBusyChange={setEvidenceBusy} />}
+            {sharePayload.evidenceRequired && <h3>Resumen interno del servicio</h3>}
             <pre className="whatsapp-message-preview">{sharePayload.text}</pre>
 
             {sharePayload.photoCount > 0 && (

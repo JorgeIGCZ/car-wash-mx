@@ -1,5 +1,9 @@
 ## Pendiente
 
+- 2026-10-04: Actualizar dependencias vulnerables existentes antes del despliegue.
+  `npm audit --omit=dev` reporto Next (critica), sharp y nanoid (altas). El trabajo
+  de evidencia no cambio dependencias ni package-lock; revisar en tarea propia.
+
 - Corregir la carga automatica de `.env.production` en build/start local
   (Next.js lo carga por convencion cuando NODE_ENV=production y pisa a
   `.env`; ver AGENT_MEMORY).
@@ -8,6 +12,11 @@
 - Considerar rate limiting en `/api/auth/login`.
 
 ## En progreso
+
+- 2026-10-04: Puesta en marcha de evidencia de recepcion. Codigo implementado;
+  falta conocer el destino de despliegue para aplicar migracion, worker y reglas
+  R2. La bandera queda apagada por defecto. Pendiente piloto fisico Android/iOS,
+  PWA y datos moviles, incluyendo firmas/CORS contra R2 real.
 
 - 2026-10-01: Nuevo rol COLLABORATOR / Colaborador.
   - Preparados enum, migracion generada con npm run db:migrate en MySQL
@@ -20,6 +29,82 @@
     en la base temporal de pruebas. Trabajo funcional pendiente de definir permisos.
 
 ## Hecho
+
+- 2026-10-07: Versionado de evidencia de recepcion solicitado por el usuario.
+  - Se agrupan videos, fotos seleccionadas, UI, migraciones, worker, tests y
+    documentacion para commit y push a main. Lint/build aislado y verificaciones
+    funcionales ya completados; la puesta en marcha de produccion sigue pendiente.
+
+
+- 2026-10-07: Fotos existentes seleccionables para el enlace de evidencia.
+  - WashPhoto conserva el mismo objeto privado; clientVisible=false por defecto
+    y clientNote publica opcional (1000 caracteres). Migracion nueva generada
+    con npm run db:migrate en MySQL desechable, aplicada solo alli.
+  - Evidencia en registro/historial permite marcar y guardar cada foto; se
+    respetan permisos de administrador/administrativo y personal propietario.
+    Consulta como participante no permite publicar. Cambios idempotentes con
+    auditoria, sin duplicar fotos ni modificar sus fechas de subida.
+  - Pagina del cliente muestra solo fotos marcadas y vigentes, observacion,
+    vencimiento y visor ampliado consistente con el historial.
+  - Acceso publico vence 10 dias desde la subida original. Proxy privado
+    no-store comprueba token/visibilidad/vencimiento; desmarcar, revocar, rotar o
+    eliminar servicio bloquea nuevas lecturas. Fotos conservadas internamente.
+  - Pasaron npm run lint, npm run build aislado sin .env.production, 3 tests
+    unitarios y 44 comprobaciones de integracion de fotos con MySQL/S3 ficticios.
+    Navegador: guardar nota, desmarcar y comprobar retiro, volver a marcar,
+    imagen cargada en pagina publica y abrir/cerrar visor; sin errores ni PWA.
+  - Documentacion actualizada. Falta aplicar migracion al desplegar; no se
+    modificaron datos/R2 de produccion ni se hizo commit/push.
+
+
+- 2026-10-04: Se cambio el control de evidencia del historial por un acordeon.
+  - Cabecera integrada a la tarjeta con titulo estable, estado y chevron;
+    expandir/contraer conserva el nombre y evita el ambiguo "Cerrar evidencia".
+  - Se retiro el titulo duplicado dentro del contenido en historial. El modal
+    de registro conserva su encabezado. Accesible con aria-expanded/aria-controls.
+  - Verificado manualmente contraer y volver a expandir el servicio local #23.
+    npm run lint y npm run build en copia aislada sin .env.production pasaron.
+
+
+- 2026-10-04: Se mejoro la UI de evidencia y se separo de la instalacion interna.
+  - Barra con porcentaje real por archivo, video actual/total y confirmacion;
+    loader e indicador animado durante conversion sin inventar porcentaje.
+  - Padding, margenes y separacion de tarjetas consistentes en historial/modal;
+    bloque visible para enlace del cliente, WhatsApp, abrir pagina y copiar URL.
+  - Paginas /evidencia/* excluidas de PwaSetup y sin manifest/appleWebApp internos.
+    Se conservo el manifest del sistema. Verificado en el DOM y navegador.
+  - El procesador local estaba detenido: se reinicio y ambos videos del servicio
+    de prueba #23 quedaron READY. Se mantuvo funcionando para las pruebas del usuario.
+  - Pasaron npm run lint, TypeScript, npm run build aislado sin .env.production y
+    3 tests unitarios y 82 comprobaciones de integracion en otro entorno aislado.
+    Revision visual de loader, espaciado y enlace publico.
+
+
+- 2026-10-04: Implementacion de evidencia de recepcion para interiores, bajo
+  bandera `EVIDENCE_ENABLED` apagada por defecto.
+  - Migracion nueva generada con npm run db:migrate en MySQL aislado; videos,
+    intentos idempotentes, enlace revocable, auditoria y estado del procesador.
+  - Captura/galeria, vista previa, observaciones publicas, carga secuencial con
+    progreso y reintentos desde registro/historial. Permisos de los cuatro roles.
+  - Subida privada R2, validacion real y conversion MP4 H.264/AAC con FFmpeg,
+    cola persistente, recuperacion tras reinicio y limpieza cada 15 minutos.
+  - Pagina publica sin datos internos; WhatsApp manual separado del resumen
+    interno. Vencimiento a 10 dias desde la subida, independiente de fecha editable.
+  - Docker del worker, configurador R2 por prefijos, monitoreo administrativo y
+    guia de operacion/despliegue en docs/VIDEO_EVIDENCE.md.
+  - Pasaron lint, TypeScript, tests unitarios (3), build aislado sin
+    .env.production e imagen Docker. Una suite de 74 comprobaciones de integracion
+    paso completa con MySQL/S3 ficticios y FFmpeg real.
+  - La suite ampliada de 82 comprobaciones paso completa en un segundo entorno
+    desechable, con puertos/base/fixtures separados de la UI del usuario. Incluye
+    WebM sin duracion, firma del tamano y eliminacion del servicio. Se corrigieron
+    dos expectativas: DELETE devuelve 204 y la pagina de enlace no disponible 200.
+    Se cerro la verificacion que habia quedado pendiente por limite de aprobacion.
+  - Navegador: registro con pendientes, dos cargas de galeria, observacion,
+    procesamiento, enlace publico, reproduccion MP4, historial y monitor admin.
+    Android/iPhone/PWA, datos moviles y R2 real siguen pendientes de piloto.
+  - No se aplicaron migraciones ni configuraciones a produccion. Sin commit/push.
+
 
 - 2026-09-30: Se homologo la edicion de fecha, pago y comentarios con los
   lapices de cantidad y comisiones.

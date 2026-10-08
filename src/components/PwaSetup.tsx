@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, Share, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -19,12 +20,16 @@ function isStandalone() {
 }
 
 export function PwaSetup() {
+  const pathname = usePathname();
+  const isPublicEvidence = pathname === "/evidencia" || pathname.startsWith("/evidencia/");
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [showIosHelp, setShowIosHelp] = useState(false);
   const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
+    if (isPublicEvidence) return;
+
     const styleCheck = window.setTimeout(() => {
       const appStylesLoaded = Array.from(document.styleSheets).some((sheet) =>
         sheet.href?.includes("/_next/static/css/"),
@@ -79,7 +84,7 @@ export function PwaSetup() {
       window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
       window.removeEventListener("appinstalled", clearInstallPrompt);
     };
-  }, []);
+  }, [isPublicEvidence]);
 
   async function install() {
     if (!installPrompt) {
@@ -92,7 +97,7 @@ export function PwaSetup() {
     setInstallPrompt(null);
   }
 
-  if (!installPrompt && !isIos) {
+  if (isPublicEvidence || (!installPrompt && !isIos)) {
     return null;
   }
 

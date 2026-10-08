@@ -29,6 +29,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import { EvidenceMonitor } from "@/components/EvidenceMonitor";
 import { PageHero } from "@/components/PageHero";
 import { WashHistory } from "@/components/WashHistory";
 import { formatMoney, formatUserRole } from "@/lib/format";
@@ -252,6 +253,7 @@ export function AdminPanel() {
         </div>
       )}
 
+      {tab === "HISTORY" && canEdit && <EvidenceMonitor />}
       {tab === "HISTORY" && (
         <WashHistory
           embedded

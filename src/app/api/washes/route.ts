@@ -1,3 +1,5 @@
+import { evidenceEnabled } from "@/lib/evidence/service";
+import { evidenceStatus } from "@/lib/evidence/constants";
 import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -108,6 +110,7 @@ export async function GET(request: NextRequest) {
     await Promise.all([
     prisma.wash.findMany({
       where,
+      omit: { evidenceToken: true, evidenceRevokedAt: true },
       include: {
         vehicleType: { select: { name: true } },
         package: { select: { name: true, category: true } },
@@ -119,6 +122,7 @@ export async function GET(request: NextRequest) {
           include: { user: { select: { id: true, name: true } } },
           orderBy: { user: { name: "asc" } },
         },
+        evidenceVideos: { where: { activeSlot: { not: null } }, select: { status: true, expiresAt: true, uploadExpiresAt: true } },
         photos: {
           select: {
             id: true,
@@ -202,6 +206,7 @@ export async function GET(request: NextRequest) {
         chargedPrice: rawChargedPrice,
         commissions: rawCommissions,
         photos,
+        evidenceVideos,
         ...washDetails
       } = wash;
       const chargedPrice = Number(rawChargedPrice);
@@ -219,6 +224,7 @@ export async function GET(request: NextRequest) {
 
       return {
         ...washDetails,
+        evidenceStatus: wash.evidenceRequired ? evidenceStatus(evidenceVideos) : null,
         personalCommission,
         ...(globalScope
           ? {
@@ -465,6 +471,7 @@ export async function POST(request: Request) {
 
   const wash = await prisma.wash.create({
     data: {
+      evidenceRequired: evidenceEnabled() && servicePackage.category === "INTERIOR",
       plate: parsed.data.plate || null,
       notes: parsed.data.notes || null,
       customServiceDescription: parsed.data.customServiceDescription || null,
@@ -487,6 +494,7 @@ export async function POST(request: Request) {
   return NextResponse.json(
     {
       id: wash.id,
+      evidenceRequired: wash.evidenceRequired,
       chargedPrice: Number(wash.chargedPrice),
       paymentType: wash.paymentType,
     },

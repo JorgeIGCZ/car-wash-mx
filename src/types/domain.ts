@@ -49,6 +49,7 @@ export type CommissionRuleOption = {
 };
 
 export type BootstrapData = {
+  evidenceEnabled: boolean;
   user: AppUser;
   users: AppUser[];
   vehicleTypes: VehicleTypeOption[];
@@ -99,6 +100,8 @@ export type ProfitDetail = {
 export type PaymentType = "CASH" | "CARD" | "TRANSFER";
 
 export type WashRecord = {
+  evidenceRequired: boolean;
+  evidenceStatus: import("@/lib/evidence/constants").EvidenceDisplayStatus | null;
   id: number;
   plate: string | null;
   chargedPrice?: number;

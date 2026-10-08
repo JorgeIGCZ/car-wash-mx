@@ -8,7 +8,7 @@ RUN npm ci
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate && npm run build
+RUN npx prisma generate && TZ=America/Mexico_City npx next build
 
 FROM base AS runner
 ENV NODE_ENV=production

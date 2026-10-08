@@ -10,13 +10,18 @@ del catalogo, con foco en un flujo de registro rapido para los encargados.
 
 ## Alcance actual
 
-- Login con roles: administrador, administrativo, encargado.
+- Login con roles: administrador, administrativo, encargado y colaborador.
 - Registro de lavado normal, interiores y servicio especial, con tipo de pago.
 - El personal administrativo puede registrar lavados a nombre de un
   administrador o encargado activo.
 - Tipos de vehiculo y precios por combinacion de paquete y vehiculo,
   configurables.
+- Evidencia de recepcion en video para nuevos interiores, bajo bandera apagada
+  por defecto: interior/exterior, enlace para cliente, vencimiento a 10 dias,
+  procesador FFmpeg separado y limpieza. Ver `docs/VIDEO_EVIDENCE.md`.
 - Fotografias privadas por lavado (hasta 6), almacenadas en Cloudflare R2.
+  En evidencia se pueden marcar fotos existentes visibles para el cliente, con
+  observacion publica y acceso de 10 dias desde su subida, sin borrar originales.
 - Historial por dia, semana, mes o rango de fechas; historial global
   filtrable por usuario en Administracion.
 - Edicion de fecha, forma de pago y comentarios de servicios desde el

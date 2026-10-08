@@ -121,6 +121,12 @@ se orienta correctamente, se limita a 1920 × 1920 px y se guarda en WebP con
 calidad 82. El historial utiliza enlaces privados con una vigencia de 15
 minutos.
 
+## Evidencia en video
+
+La evidencia de recepción para interiores está deshabilitada por defecto. Consulta
+[la guía de operación, despliegue y piloto](docs/VIDEO_EVIDENCE.md) antes de activar
+`EVIDENCE_ENABLED`. Requiere migración, procesador FFmpeg y reglas específicas de R2.
+
 ## Verificación
 
 ```bash

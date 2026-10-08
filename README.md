@@ -125,7 +125,8 @@ minutos.
 
 La evidencia de recepción para interiores está deshabilitada por defecto. Consulta
 [la guía de operación, despliegue y piloto](docs/VIDEO_EVIDENCE.md) antes de activar
-`EVIDENCE_ENABLED`. Requiere migración, procesador FFmpeg y reglas específicas de R2.
+`EVIDENCE_ENABLED`. Conserva videos originales sin conversion ni FFmpeg; requiere
+las migraciones existentes, CORS/lifecycle de R2 y limpieza programada cada 15 minutos.
 
 ## Verificación
 

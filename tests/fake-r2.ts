@@ -13,6 +13,16 @@ const server = createServer(async (request, response) => {
   if (request.method === "OPTIONS") { response.writeHead(204).end(); return; }
   if (path === "/_test/fail-deletes") { failDeletes = request.method === "POST"; response.end("ok"); return; }
   if (request.method === "PUT") {
+    const source = request.headers["x-amz-copy-source"];
+    if (source) {
+      const original = objects.get("/" + decodeURIComponent(String(source).replace(/^\//, "")));
+      if (!original) { response.writeHead(404).end(); return; }
+      if (request.headers["x-amz-copy-source-if-match"] !== original.etag) { response.writeHead(412).end(); return; }
+      const modified = new Date();
+      objects.set(path, { ...original, type: String(request.headers["content-type"] || original.type), modified });
+      response.setHeader("Content-Type", "application/xml");
+      response.end(`<CopyObjectResult><ETag>${original.etag}</ETag><LastModified>${modified.toISOString()}</LastModified></CopyObjectResult>`); return;
+    }
     const chunks: Buffer[] = []; for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const body = Buffer.concat(chunks); const etag = `"${createHash("md5").update(body).digest("hex")}"`;
     objects.set(path, { body, type: String(request.headers["content-type"] || "application/octet-stream"), etag, modified: new Date() });

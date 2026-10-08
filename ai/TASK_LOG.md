@@ -14,8 +14,9 @@
 ## En progreso
 
 - 2026-10-04: Puesta en marcha de evidencia de recepcion. Codigo implementado;
-  falta conocer el destino de despliegue para aplicar migracion, worker y reglas
-  R2. La bandera queda apagada por defecto. Pendiente piloto fisico Android/iOS,
+  destino confirmado: Hostinger compartido. Usuario aprobo originales sin
+  conversion el 2026-10-08. Falta desplegar esta adaptacion y programar limpieza
+  autenticada cada 15 minutos. Mantener reglas R2 actuales. Piloto Android/iOS,
   PWA y datos moviles, incluyendo firmas/CORS contra R2 real.
 
 - 2026-10-01: Nuevo rol COLLABORATOR / Colaborador.
@@ -29,6 +30,28 @@
     en la base temporal de pruebas. Trabajo funcional pendiente de definir permisos.
 
 ## Hecho
+
+- 2026-10-08: Evidencia adaptada a videos originales sin conversion, por solicitud
+  del usuario para Hostinger compartido. Sin cambios de esquema ni migraciones.
+  - Confirmacion verifica contenido, audio, codecs, tamano y duracion con
+    MediaInfo WebAssembly; acepta MP4/MOV/WebM sin recomprimir. Copia identica
+    privada a evidence/videos/, conservando vencimiento de subida + 10 dias.
+  - Recuperacion de QUEUED/PROCESSING desde Verificar videos subidos. Si el
+    temporal ya no existe, solicitar seleccion nueva. R2 transitorio no marca
+    el archivo como perdido. URLs PUT previas no alteran copias aceptadas.
+  - Worker FFmpeg retirado. Limpieza POST autenticada ADMIN/Bearer con candado
+    MySQL; monitor indica ultima limpieza, pendientes y errores. Reglas R2
+    originals/un dia y videos/diez dias se mantienen, sin afectar fotos.
+  - Actualizados README, contexto, memoria, guia despliegue/CORS/cron y ejemplo
+    de entorno. mediainfo.js externalizado con WASM incluido en standalone.
+  - Pasaron lint, build aislado sin .env.production, pruebas unitarias de
+    evidencia y evidence:build. Integracion: 29 verificaciones con MySQL/R2
+    ficticios, tambien contra runtime standalone compilado (validacion WASM,
+    bytes identicos, concurrencia, roles, WebM, vencimiento y limpieza).
+  - Navegador local: servicio ficticio #10 recupera ambos videos pendientes,
+    muestra Completa, reproductores y enlace/WhatsApp habilitado. No se
+    modificaron datos de produccion. Pendiente despliegue, cron y piloto fisico
+    para comprobar codecs originales y limites del hosting compartido.
 
 - 2026-10-08: Correccion de observaciones/reintentos y confirmacion de videos.
   - Campo editable tras fallar la carga; mismo requestKey conserva intento y

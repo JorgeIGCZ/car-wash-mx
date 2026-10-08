@@ -6,8 +6,8 @@ export const EVIDENCE_ZONES = ["INTERIOR", "EXTERIOR"] as const;
 export type EvidenceZoneName = (typeof EVIDENCE_ZONES)[number];
 export const zoneLabels = { INTERIOR: "Interior", EXTERIOR: "Exterior" };
 export const evidenceLabels = {
-  PENDING: "Evidencia pendiente", UPLOADING: "Subiendo", QUEUED: "Procesando",
-  PROCESSING: "Procesando", READY: "Completa", FAILED: "Evidencia pendiente",
+  PENDING: "Evidencia pendiente", UPLOADING: "Subiendo", QUEUED: "Por verificar",
+  PROCESSING: "Verificando", READY: "Completa", FAILED: "Evidencia pendiente",
   EXPIRED: "Vencida", SUPERSEDED: "Sustituida",
 };
 export type EvidenceDisplayStatus = keyof typeof evidenceLabels;
@@ -23,6 +23,7 @@ export type EvidencePhotoView = {
 export type EvidenceView = {
   washId: number; enabled: boolean; status: EvidenceDisplayStatus;
   canUpload: boolean; canManageLink: boolean; sharePath: string | null;
+  canVerify: boolean;
   revoked: boolean; videos: EvidenceVideoView[];
   canManagePhotos: boolean; photos: EvidencePhotoView[];
 };

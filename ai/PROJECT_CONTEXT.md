@@ -18,7 +18,8 @@ del catalogo, con foco en un flujo de registro rapido para los encargados.
   configurables.
 - Evidencia de recepcion en video para nuevos interiores, bajo bandera apagada
   por defecto: interior/exterior, enlace para cliente, vencimiento a 10 dias,
-  procesador FFmpeg separado y limpieza. Ver `docs/VIDEO_EVIDENCE.md`.
+  originales sin conversion/FFmpeg y limpieza programada en la web.
+  Ver `docs/VIDEO_EVIDENCE.md`.
 - Fotografias privadas por lavado (hasta 6), almacenadas en Cloudflare R2.
   En evidencia se pueden marcar fotos existentes visibles para el cliente, con
   observacion publica y acceso de 10 dias desde su subida, sin borrar originales.

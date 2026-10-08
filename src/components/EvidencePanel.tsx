@@ -78,7 +78,7 @@ export function EvidencePanel({ washId, onBusyChange, onStatusChange, showHeadin
         if (["FAILED", "EXPIRED", "SUPERSEDED"].includes(completed.status)) throw new Error("El video no pudo aceptarse. Prepara un nuevo intento con el archivo seleccionado.");
         if (mounted.current) setDrafts(current => { const next = { ...current }; delete next[zone]; return next; });
       }
-      if (mounted.current) setProgress("Videos enviados. Estamos preparándolos para su consulta.");
+      if (mounted.current) setProgress("Videos listos para su consulta.");
     } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : "No fue posible subir el video."); }
     finally { lock.current = false; if (mounted.current) { setBusy(false); setTransfer(null); await refresh(); } }
   }
@@ -87,6 +87,16 @@ export function EvidencePanel({ washId, onBusyChange, onStatusChange, showHeadin
     try { await api(`${base}/share`, { action }); await refresh(); }
     catch (e) { setError(e instanceof Error ? e.message : "No fue posible actualizar el enlace."); }
     finally { setSharing(false); }
+  }
+  async function verifyPending() {
+    if (lock.current || !data) return;
+    lock.current = true; setBusy(true); setError(""); setProgress("Verificando videos subidos…");
+    try {
+      for (const video of data.videos.filter(v => ["QUEUED", "PROCESSING"].includes(v.status))) {
+        await api(`${base}/${video.id}/complete`, {});
+      }
+    } catch (e) { setError(e instanceof Error ? e.message : "No se pudo verificar el video."); }
+    finally { lock.current = false; setBusy(false); await refresh(); }
   }
   if (!data) return <section className="evidence-panel evidence-loading" aria-busy={!error}>
     {!error && <LoaderCircle className="evidence-spinner" size={22} aria-hidden="true"/>}
@@ -124,14 +134,15 @@ export function EvidencePanel({ washId, onBusyChange, onStatusChange, showHeadin
     })}</div>
     {(busy || processing) && <div className="evidence-progress" role="status" aria-live="polite">
       <div className="evidence-progress-heading"><LoaderCircle className="evidence-spinner" size={18} aria-hidden="true"/>
-        <strong>{busy ? progress || "Preparando subida…" : "Preparando videos para el cliente"}</strong>
+        <strong>{busy ? progress || "Preparando subida…" : "Videos subidos pendientes de verificación"}</strong>
         {busy && transfer?.percent !== null && transfer?.percent !== undefined && <span>{transfer.percent}%</span>}
       </div>
       {busy ? <><div className={`evidence-progress-track${transfer?.percent == null ? " evidence-progress-indeterminate" : ""}`} role="progressbar" aria-label="Progreso de subida" aria-valuemin={0} aria-valuemax={100} aria-valuenow={transfer?.percent ?? undefined} aria-valuetext={progress}>
         <span style={transfer?.percent == null ? undefined : { width: `${transfer.percent}%` }}/>
-      </div><small>Video {transfer?.position ?? 1} de {transfer?.total ?? 1} · Mantén esta pantalla abierta durante la subida.</small></> : <>
+      </div><small>{transfer ? `Video ${transfer.position} de ${transfer.total} · Mantén esta pantalla abierta durante la subida.` : "Mantén esta pantalla abierta mientras verificamos los videos."}</small></> : <>
         <div className="evidence-progress-track evidence-progress-indeterminate" aria-hidden="true"><span/></div>
-        <small>{readyCount} de 2 videos listos. El estado se actualiza automáticamente; puedes continuar desde el historial.</small>
+        <small>{readyCount} de 2 videos listos. Verifica los originales para habilitar su consulta sin conversión.</small>
+        {data.canVerify && <button type="button" className="secondary-button" onClick={() => void verifyPending()}>Verificar videos subidos</button>}
       </>}
     </div>}
     {(Object.keys(drafts).length > 0 || error) && <div className="evidence-upload-actions">

@@ -3,7 +3,8 @@ import { z } from "zod";
 import type { Prisma, User } from "@prisma/client";
 import { prisma } from "../prisma";
 import { EVIDENCE_MAX_BYTES, EVIDENCE_RETENTION_MS, EVIDENCE_UPLOAD_SECONDS, evidenceStatus, videoStatus, type EvidenceView } from "./constants";
-import { headOriginal, uploadUrl, videoUrl } from "./storage";
+import { headOriginal, preserveOriginal, readOriginal, uploadUrl, videoUrl } from "./storage";
+import { inspectOriginal, InvalidOriginal } from "./original";
 
 export const evidenceEnabled = () => process.env.EVIDENCE_ENABLED === "true";
 export class EvidenceError extends Error {
@@ -37,6 +38,7 @@ export async function evidenceView(washId: number, user: Pick<User, "id" | "role
     photos: photos.map(photo => ({ id: photo.id, clientVisible: photo.clientVisible, clientNote: photo.clientNote,
       expiresAt: photoExpiry(photo.createdAt).toISOString(), expired: photoExpiry(photo.createdAt).getTime() <= Date.now() })),
     canUpload: evidenceEnabled() && canUploadEvidence(user, wash.createdById),
+    canVerify: canUploadEvidence(user, wash.createdById),
     canManageLink: user.role === "ADMIN", revoked: Boolean(wash.evidenceRevokedAt),
     sharePath: state === "READY" && wash.evidenceToken && !wash.evidenceRevokedAt ? `/evidencia/${wash.evidenceToken}` : null,
     videos: videos.map(video => ({
@@ -106,22 +108,53 @@ export async function completeUpload(washId: number, videoId: string, user: User
   await evidenceWash(washId, user, true);
   const record = await prisma.evidenceVideo.findFirst({ where: { id: videoId, washId, activeSlot: { not: null } } });
   if (!record) throw new EvidenceError(404, "Carga no encontrada.");
-  if (record.status !== "UPLOADING") return { id: record.id, status: record.status };
-  // Allow time for the final confirmation after the signed upload has finished.
-  if (Date.now() > record.uploadExpiresAt.getTime() + 60000) throw new EvidenceError(409, "La carga venció. Inicia un nuevo intento.");
-  const object = await headOriginal(record.originalKey).catch(() => null);
-  if (!object) throw new EvidenceError(409, "El video todavía no está guardado. Reintenta la subida.");
+  if (!["UPLOADING", "QUEUED", "PROCESSING"].includes(record.status)) return { id: record.id, status: record.status };
+  if (record.status === "UPLOADING" && Date.now() > record.uploadExpiresAt.getTime() + 60000) throw new EvidenceError(409, "La carga venció. Inicia un nuevo intento.");
+  const object = await headOriginal(record.originalKey).catch((error: unknown) => {
+    if ((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404) return null;
+    throw error;
+  });
+  if (!object) {
+    if (record.status !== "UPLOADING") await prisma.evidenceVideo.updateMany({ where: { id: record.id, status: { in: ["QUEUED", "PROCESSING"] } }, data: { status: "FAILED", errorCode: "UPLOAD_EXPIRED" } });
+    throw new EvidenceError(409, "El video original no está disponible. Selecciónalo de nuevo para reintentar.");
+  }
   if (!object.ContentLength || object.ContentLength !== record.expectedBytes || object.ContentLength > EVIDENCE_MAX_BYTES || !object.ETag || !object.LastModified) {
-    await prisma.evidenceVideo.updateMany({ where: { id: record.id, status: "UPLOADING" }, data: { status: "FAILED", errorCode: "INVALID_VIDEO" } });
     throw new EvidenceError(400, "El archivo no cumple los límites permitidos.");
   }
-  const uploadedAt = object.LastModified;
+  if (record.originalEtag && object.ETag !== record.originalEtag) throw new EvidenceError(409, "El archivo cambió después de la subida. Selecciónalo de nuevo.");
+  const uploadedAt = record.uploadedAt ?? object.LastModified;
+  const expiresAt = record.expiresAt ?? new Date(uploadedAt.getTime() + EVIDENCE_RETENTION_MS);
+  if (expiresAt.getTime() <= Date.now()) throw new EvidenceError(410, "La evidencia venció.");
   if (uploadedAt > record.uploadExpiresAt || uploadedAt.getTime() < record.createdAt.getTime() - 5000) throw new EvidenceError(409, "La carga venció.");
-  await prisma.evidenceVideo.updateMany({ where: { id: record.id, status: "UPLOADING", activeSlot: { not: null } }, data: {
-    status: "QUEUED", originalEtag: object.ETag, uploadedAt,
-    expiresAt: new Date(uploadedAt.getTime() + EVIDENCE_RETENTION_MS), errorCode: null,
-  } });
-  return { id: record.id, status: "QUEUED" };
+  const bytes = await readOriginal(record.originalKey, object.ETag);
+  let metadata;
+  try { metadata = await inspectOriginal(bytes); }
+  catch (error) {
+    if (!(error instanceof InvalidOriginal)) throw error;
+    await prisma.evidenceVideo.updateMany({ where: { id: record.id, status: { in: ["UPLOADING", "QUEUED", "PROCESSING"] } }, data: { status: "FAILED", errorCode: "INVALID_VIDEO" } });
+    throw new EvidenceError(400, errorText("INVALID_VIDEO"));
+  }
+  const destination = `evidence/videos/${washId}/${record.id}/original`;
+  // Track the destination even if the copy succeeds but its response is lost.
+  await prisma.evidenceVideo.updateMany({ where: { id: record.id, status: { in: ["UPLOADING", "QUEUED", "PROCESSING"] } }, data: { processedKey: destination } });
+  return prisma.$transaction(async tx => {
+    await lockWash(tx, washId);
+    const current = await tx.evidenceVideo.findUniqueOrThrow({ where: { id: record.id } });
+    if (current.status === "READY") return { id: current.id, status: current.status };
+    const wash = await tx.wash.findUniqueOrThrow({ where: { id: washId } });
+    if (wash.deletedAt || !current.activeSlot || !canUploadEvidence(user, wash.createdById)) throw new EvidenceError(409, "La evidencia ya no está disponible.");
+    if (!["UPLOADING", "QUEUED", "PROCESSING"].includes(current.status) || expiresAt.getTime() <= Date.now()) throw new EvidenceError(409, "La carga ya no puede confirmarse.");
+    // Copy bytes unchanged to a private key the browser can never overwrite.
+    await preserveOriginal(record.originalKey, destination, object.ETag!, metadata.contentType);
+    await tx.evidenceVideo.update({ where: { id: record.id }, data: {
+      status: "READY", processedKey: destination, contentType: metadata.contentType,
+      originalEtag: object.ETag, uploadedAt, expiresAt, acceptedAt: new Date(),
+      byteSize: bytes.length, durationSeconds: metadata.duration, width: metadata.width,
+      height: metadata.height, processingOwner: null, errorCode: null,
+    } });
+    await tx.evidenceEvent.create({ data: { washId, videoId: record.id, actorId: user.id, action: "ORIGINAL_VIDEO_ACCEPTED" } });
+    return { id: record.id, status: "READY" };
+  }, { timeout: 65000 });
 }
 export async function lockWash(tx: Prisma.TransactionClient, id: number) {
   await tx.$queryRaw`SELECT id FROM Wash WHERE id = ${id} FOR UPDATE`;
@@ -165,7 +198,7 @@ export async function playableVideo(washId: number, videoId: string) {
     wash: { deletedAt: null },
   } });
   if (!video?.processedKey || !video.expiresAt) throw new EvidenceError(410, "Este video ya no está disponible.");
-  return { url: await videoUrl(video.processedKey, video.expiresAt), expiresAt: video.expiresAt.toISOString() };
+  return { url: await videoUrl(video.processedKey, video.expiresAt, video.processedKey.endsWith("/original") ? video.contentType : "video/mp4"), expiresAt: video.expiresAt.toISOString() };
 }
 
 export const photoExpiry = (uploadedAt: Date) => new Date(uploadedAt.getTime() + EVIDENCE_RETENTION_MS);

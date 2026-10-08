@@ -18,7 +18,7 @@ export function EvidencePlayer({ endpoint, label }: { endpoint: string; label: s
   }
   return <div className="evidence-player">
     {url && <video ref={element} src={url} controls playsInline preload="none" aria-label={label}
-      onError={() => { setUrl(null); setError("El acceso temporal terminó o la conexión falló. Vuelve a cargar el video."); }} />}
+      onError={() => { setUrl(null); setError("No se pudo reproducir el video. Reintenta; si continúa, el formato original podría no ser compatible con este navegador."); }} />}
     {!url && <button type="button" className="secondary-button" disabled={loading} onClick={() => void load()}><Play size={18} />{loading ? "Cargando…" : `Cargar video ${label.toLowerCase()}`}</button>}
     {error && <p role="alert">{error}</p>}
   </div>;

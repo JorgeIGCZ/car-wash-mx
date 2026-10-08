@@ -117,16 +117,17 @@
   la limpieza este detenida. R2 lifecycle es respaldo por edad del objeto.
 - Mantener videos en `evidence/originals/` y `evidence/videos/`, separados de fotos
   y sin heredar su cache anual. No mostrar claves, tokens ni URLs firmadas en logs.
-- Worker persistente separado de Next; lease MySQL, reintentos y destinos R2
-  registrados antes del PUT para recuperar caidas. Una sola conversion simultanea.
+- Desde 2026-10-08 el hosting compartido usa videos originales sin conversion:
+  completar subida verifica con MediaInfo WASM y copia bytes a evidence/videos/.
+  El worker FFmpeg anterior esta retirado; limpieza autenticada cada 15 minutos.
 - Revocar un enlace invalida nuevas autorizaciones; GET ya emitidos duran hasta
   60 s. Borrar un servicio inhabilita tambien la evidencia publica.
 - Build de Docker ya no migra: ejecutar migrate deploy en el release antes de
-  arrancar la aplicacion. No desplegar la bandera sin worker, limpieza y CORS.
+  arrancar la aplicacion. No desplegar la bandera sin limpieza y CORS.
 
-- MediaRecorder puede producir WebM sin duracion de contenedor. FFprobe debe
-  calcularla con timestamps de paquetes antes de rechazarlo; mantener validacion
-  de la duracion del MP4 normalizado. No confiar en Infinity del navegador.
+- MediaRecorder puede producir WebM sin duracion de contenedor. En el flujo
+  original leer timestamps de bloques EBML sin lacing y sumar el ultimo paquete;
+  entradas no verificables se rechazan. No confiar en Infinity del navegador.
 - `data-new-gr-c-s-check-loaded` y `data-gr-ext-installed` en errores de hydration
   provienen de Grammarly modificando el body. Verificar con la extension apagada;
   no ocultar globalmente errores de hidratacion en layout.tsx.
@@ -159,3 +160,12 @@
   solo mientras UPLOADING y comprueba zona/tipo/tamano para el mismo intento.
 - R2 requiere CORS para los PUT directos del navegador; lifecycle no lo configura.
   El usuario confirmo que no habia agregado CORS al bucket (2026-10-08).
+
+- mediainfo.js debe externalizarse en Next y su MediaInfoModule.wasm incluirse
+  en tracing standalone. Validado en runtime compilado sin binarios nativos.
+- Mantener lifecycle originals/ un dia aunque no haya conversion: es temporal.
+  CopyObject condicional preserva bytes en videos/ diez dias y evita que un PUT
+  temporal sobrescriba la copia aceptada. expiresAt conserva subida original.
+- No tratar un error transitorio R2 como archivo ausente: solo HEAD 404 permite
+  declarar perdido un original pendiente. Cron usa EVIDENCE_CLEANUP_SECRET
+  (minimo 32 caracteres), POST y Bearer; nunca poner el secreto en la URL.

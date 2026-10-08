@@ -1,7 +1,7 @@
 import { prisma } from "../src/lib/prisma";
 async function main() {
-  const state = await prisma.evidenceWorkerState.findUnique({ where: { id: "main" } });
-  const healthy = Boolean(state && Date.now() - state.heartbeatAt.getTime() < 120000 && state.lastCleanupAt && Date.now() - state.lastCleanupAt.getTime() < 20 * 60000 && !state.lastError);
+  const state = await prisma.evidenceWorkerState.findUnique({ where: { id: "cleanup" } });
+  const healthy = Boolean(state?.lastCleanupAt && Date.now() - state.lastCleanupAt.getTime() < 30 * 60000 && !state.lastError);
   console.log(JSON.stringify({ healthy, heartbeatAt: state?.heartbeatAt, lastCleanupAt: state?.lastCleanupAt, lastError: state?.lastError }));
   if (!healthy) process.exitCode = 1;
 }

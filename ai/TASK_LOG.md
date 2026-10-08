@@ -30,6 +30,28 @@
 
 ## Hecho
 
+- 2026-10-07: Se ajustaron los botones de captura de evidencia: texto de 13px
+  y peso moderado, iconos sin encogerse, Galeria sin mayusculas forzadas,
+  botones de ancho completo y altura minima de 44px. Interior/exterior se
+  acomodan segun el ancho disponible para evitar texto partido.
+  - Validacion: lint y build aislado pasaron sin usar .env.production;
+    revision manual de /admin a 1280px y 390px, sin desbordamiento en botones.
+
+- 2026-10-07: Se corrigio el estiramiento de tarjetas vecinas al abrir evidencia.
+  - La cuadricula history-list alinea tarjetas y filas al inicio; cada tarjeta
+    conserva altura natural. Corrige historial administrativo y personal sin
+    modificar estados de acordeon ni estructura de servicios.
+  - Navegador con datos ficticios: expandir una tarjeta cambio su altura de
+    618 a 2190 px; la vecina permanecio en 618 px y cerrada. Al contraer, las
+    alturas originales se conservaron. Captura de verificacion guardada.
+  - Pasaron npm run lint y npm run build en copia aislada sin .env.production.
+  - Se reparo el entorno temporal de pruebas copiando dependencias reales:
+    node_modules enlazado ocasionaba cookies fuera del contexto de request.
+    No se modifico autenticacion del proyecto ni datos de produccion.
+  - Correcciones de tarjetas y botones incluidas en el commit/push solicitado;
+    pendiente confirmar despliegue en produccion.
+
+
 - 2026-10-07: Versionado de evidencia de recepcion solicitado por el usuario.
   - Se agrupan videos, fotos seleccionadas, UI, migraciones, worker, tests y
     documentacion para commit y push a main. Lint/build aislado y verificaciones

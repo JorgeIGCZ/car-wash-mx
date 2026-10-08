@@ -1291,6 +1291,8 @@ label em {
 .history-list {
   min-height: 400px;
   display: grid;
+  align-items: start;
+  align-content: start;
   gap: 12px;
   padding: 24px;
 }
@@ -4145,7 +4147,7 @@ label em {
 .evidence-badge { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 12px; padding: 5px 10px; border-radius: 999px; background: var(--yellow-pale); color: #765200; }
 .evidence-ready { background: #e5f5ed; color: #086340; }
 .evidence-expired { background: #e9ebef; color: var(--muted); }
-.evidence-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 20px 0; }
+.evidence-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: 16px; margin: 20px 0; }
 .evidence-zone { min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
 .evidence-zone h4 { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 0.92rem; }
 .evidence-zone-status { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 0.7rem; font-weight: 600; }
@@ -4162,6 +4164,8 @@ label em {
 .evidence-error { color: var(--danger) !important; }
 .evidence-note { white-space: pre-wrap; overflow-wrap: anywhere; }
 .evidence-actions { margin-top: 12px; }
+.evidence-capture .secondary-button { width: 100%; min-height: 44px; padding: 10px 12px; gap: 8px; font-size: 0.8125rem; font-weight: 650; line-height: 1.4; letter-spacing: normal; text-transform: none; white-space: nowrap; }
+.evidence-capture .secondary-button > svg { flex-shrink: 0; }
 .record-evidence { grid-column: 2; margin-top: 18px; width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #f8f9fa; }
 .evidence-toggle { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 64px; padding: 14px 16px; border: 0; background: transparent; color: var(--ink); text-align: left; }
 .evidence-toggle:hover:not(:disabled) { background: var(--yellow-pale); }
@@ -4185,7 +4189,6 @@ label em {
   .evidence-panel { padding: 16px; }
   .evidence-zone { padding: 16px; }
   .evidence-client-share { padding: 14px; }
-  .evidence-actions .primary-button, .evidence-actions .secondary-button { white-space: normal; }
 }
 
 .evidence-monitor { margin: 12px 0; border: 1px solid var(--line); border-radius: 12px; padding: 14px; font-size: 13px; }

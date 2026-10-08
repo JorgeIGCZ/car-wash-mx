@@ -145,3 +145,11 @@
   no reinicia createdAt ni elimina objetos; expira solo el acceso publico tras
   10 dias. Servir por proxy no-store con token/visibilidad/expiry por solicitud:
   no usar cache Next Image ni heredar la cache anual del objeto original.
+
+- history-list necesita align-items:start y align-content:start: CSS Grid puede
+  estirar tarjetas vecinas al expandir evidencia, repartiendo espacio entre sus
+  filas internas. Mantener alturas naturales en historial personal/admin.
+
+- Los controles de captura necesitan tipografia propia y anchos adaptativos:
+  el estilo global de label convierte Galeria a mayusculas y los botones
+  generales resultan demasiado grandes para zonas de evidencia estrechas.
